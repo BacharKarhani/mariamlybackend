@@ -12,6 +12,7 @@ use App\Http\Controllers\ZoneController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ContactController;
 
 // ===========================
 // Public Auth Routes
@@ -110,5 +111,4 @@ Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/products/{product}/related', [ProductController::class, 'related']);
 Route::get('/zones', [ZoneController::class, 'index']);
 
-use App\Http\Controllers\ContactController;
 Route::post('/contact', [ContactController::class, 'store']);
