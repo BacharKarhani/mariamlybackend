@@ -145,7 +145,7 @@ class AuthController extends Controller
 
     public function test()
     {
-        return response()->json(['message' => 'hello boss']);
+        return response()->json(['message' => 'hello ya az3arrrrr']);
     }
 
     public function profile(Request $request)

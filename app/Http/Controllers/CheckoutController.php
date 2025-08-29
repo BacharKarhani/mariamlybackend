@@ -6,15 +6,18 @@ use App\Models\Order;
 use App\Models\OrderProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderPlacedUser;
+use App\Mail\OrderPlacedAdmin;
 
 class CheckoutController extends Controller
 {
     public function store(Request $request)
     {
         $request->validate([
-            'address_id' => 'required|exists:addresses,id',
-            'payment_code' => 'required|in:cash,whish',
+            'address_id'   => 'required|exists:addresses,id',
+            'payment_code' => 'required|in:cash', // Cash only
         ]);
 
         $user = $request->user();
@@ -29,91 +32,83 @@ class CheckoutController extends Controller
 
         $subtotal = $cartItems->sum(fn($item) => $item->product->selling_price * $item->quantity);
         $shipping = 3;
-        $total = $subtotal + $shipping;
+        $total    = $subtotal + $shipping;
 
         DB::beginTransaction();
 
         try {
             $order = Order::create([
-                'user_id' => $user->id,
-                'address_id' => $request->address_id,
-                'subtotal' => $subtotal,
-                'shipping' => $shipping,
-                'total' => $total,
-                'payment_code' => $request->payment_code,
+                'user_id'      => $user->id,
+                'address_id'   => $request->address_id,
+                'subtotal'     => $subtotal,
+                'shipping'     => $shipping,
+                'total'        => $total,
+                'payment_code' => $request->payment_code, // 'cash'
                 'order_status' => 'pending',
-                'date_added' => now(),
+                'date_added'   => now(),
             ]);
 
             foreach ($cartItems as $item) {
                 OrderProduct::create([
-                    'order_id' => $order->order_id,
+                    'order_id'   => $order->order_id, // primary key عندك
                     'product_id' => $item->product_id,
-                    'price' => $item->product->selling_price,
-                    'quantity' => $item->quantity,
-                    'total' => $item->product->selling_price * $item->quantity,
+                    'price'      => $item->product->selling_price,
+                    'quantity'   => $item->quantity,
+                    'total'      => $item->product->selling_price * $item->quantity,
                 ]);
 
+                // تنزيل المخزون
                 $item->product->decrement('quantity', $item->quantity);
             }
 
-            if ($request->payment_code == 'whish') {
-                $whishResponse = $this->createWhishPayment($order);
+            // تفريغ السلة
+            $user->cart()->delete();
 
-                if ($whishResponse['status'] == true) {
-                    DB::commit();
-                    return response()->json([
-                        'success' => true,
-                        'payment_type' => 'whish',
-                        'payment_url' => $whishResponse['data']['whishUrl'],
-                        'order' => $order,
-                    ]);
+            DB::commit();
+
+            // حمّل العلاقات الصحيحة للإيميل
+$orderFresh = Order::with(['user', 'address.zone', 'orderProducts.product'])
+                ->where('order_id', $order->order_id)
+                ->first();
+
+            // =============================
+            // إرسال الإيميلات (لا تفشل الطلب)
+            // =============================
+            try {
+                if (!empty($orderFresh->user?->email)) {
+                    Mail::to($orderFresh->user->email)
+                        ->send(new OrderPlacedUser($orderFresh));
                 } else {
-                    DB::rollback();
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Failed to create Whish payment.',
-                    ], 500);
+                    Log::warning('User email missing for order #'.$orderFresh->order_id);
                 }
-            } else {
-                $user->cart()->delete();
-                DB::commit();
-                return response()->json([
-                    'success' => true,
-                    'payment_type' => 'cash',
-                    'message' => 'Order placed successfully.',
-                    'order' => $order->load('user', 'address'),
-                ], 201);
+
+                $adminEmail = env('ADMIN_EMAIL');
+                if ($adminEmail) {
+                    Mail::to($adminEmail)->send(new OrderPlacedAdmin($orderFresh));
+                } else {
+                    Log::warning('ADMIN_EMAIL not set; admin email skipped for order #'.$orderFresh->order_id);
+                }
+            } catch (\Throwable $mailEx) {
+                Log::error('Order emails failed: ' . $mailEx->getMessage(), [
+                    'order_id' => $order->order_id
+                ]);
             }
+
+            return response()->json([
+                'success'      => true,
+                'payment_type' => 'cash',
+                'message'      => 'Order placed successfully.',
+                'order'        => $orderFresh,
+            ], 201);
+
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong. Please try again.',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
-    }
-
-    private function createWhishPayment($order)
-    {
-        $url = env('WHISH_BASE_URL') . '/payment/whish';
-
-        $response = Http::withHeaders([
-            'channel' => env('WHISH_CHANNEL'),
-            'secret' => env('WHISH_SECRET'),
-            'websiteurl' => env('APP_URL'),
-        ])->post($url, [
-            'amount' => $order->total,
-            'currency' => 'USD',
-            'invoice' => 'Order #' . $order->order_id,
-            'externalId' => $order->order_id,
-            'successCallbackUrl' => route('api.whish.callback.success', ['order_id' => $order->order_id]),
-            'failureCallbackUrl' => route('api.whish.callback.failure', ['order_id' => $order->order_id]),
-            'successRedirectUrl' => route('api.whish.redirect.success', ['order_id' => $order->order_id]),
-            'failureRedirectUrl' => route('api.whish.redirect.failure', ['order_id' => $order->order_id]),
-        ]);
-
-        return $response->json();
     }
 }
