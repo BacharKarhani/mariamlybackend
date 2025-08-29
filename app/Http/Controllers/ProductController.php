@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\RecentlyViewed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\Models\RecentlyViewed;
 
 class ProductController extends Controller
 {
@@ -37,7 +37,7 @@ class ProductController extends Controller
 
         // Log to recently_viewed if user is logged in
         if ($user) {
-            \App\Models\RecentlyViewed::updateOrCreate(
+            RecentlyViewed::updateOrCreate(
                 ['user_id' => $user->id, 'product_id' => $product->id],
                 ['updated_at' => now()]
             );
@@ -48,7 +48,6 @@ class ProductController extends Controller
             'product' => $product
         ]);
     }
-
 
     // Admin: create product with multiple images
     public function store(Request $request)
@@ -63,12 +62,14 @@ class ProductController extends Controller
             'quantity' => 'required|integer|min:0',
             'is_trending' => 'sometimes|boolean',
             'images.*' => 'nullable|image|max:2048',
+            'is_new' => 'sometimes|boolean',     // NEW
+            'new_until' => 'nullable|date',      // NEW
         ]);
-    
+
         $regularPrice = $request->regular_price;
         $discount = $request->discount ?? 0;
         $sellingPrice = $regularPrice - ($regularPrice * $discount / 100);
-    
+
         $product = Product::create([
             'name' => $request->name,
             'desc' => $request->desc,
@@ -78,23 +79,25 @@ class ProductController extends Controller
             'discount' => $discount,
             'selling_price' => $sellingPrice,
             'quantity' => $request->quantity,
-            'is_trending' => $request->has('is_trending') ? $request->is_trending : false,
+            'is_trending' => $request->has('is_trending') ? $request->boolean('is_trending') : false,
+            'is_new' => $request->has('is_new') ? $request->boolean('is_new') : false,     // NEW
+            'new_until' => $request->new_until,                                            // NEW
         ]);
-    
+
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
                 $product->images()->create(['path' => $path]);
             }
         }
-    
+
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
             'product' => $product->load('images')
         ], 201);
     }
-    
+
     public function update(Request $request, Product $product)
     {
         $request->validate([
@@ -107,12 +110,14 @@ class ProductController extends Controller
             'quantity' => 'required|integer|min:0',
             'is_trending' => 'sometimes|boolean',
             'images.*' => 'nullable|image|max:2048',
+            'is_new' => 'sometimes|boolean',     // NEW
+            'new_until' => 'nullable|date',      // NEW
         ]);
-    
+
         $regularPrice = $request->regular_price;
         $discount = $request->discount ?? 0;
         $sellingPrice = $regularPrice - ($regularPrice * $discount / 100);
-    
+
         $product->update([
             'name' => $request->name,
             'desc' => $request->desc,
@@ -122,23 +127,24 @@ class ProductController extends Controller
             'discount' => $discount,
             'selling_price' => $sellingPrice,
             'quantity' => $request->quantity,
-            'is_trending' => $request->has('is_trending') ? $request->is_trending : $product->is_trending,
+            'is_trending' => $request->has('is_trending') ? $request->boolean('is_trending') : $product->is_trending,
+            'is_new' => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,     // NEW
+            'new_until' => $request->has('new_until') ? $request->new_until : $product->new_until,    // NEW
         ]);
-    
+
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
                 $product->images()->create(['path' => $path]);
             }
         }
-    
+
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
             'product' => $product->load('images')
         ]);
     }
-    
 
     // Admin: delete product and all related images
     public function destroy(Product $product)
@@ -190,6 +196,23 @@ class ProductController extends Controller
         ]);
     }
 
+    // NEW: قائمة المنتجات الجديدة (فعّالة بحسب is_new/new_until)
+    public function newProducts()
+    {
+        $products = Product::with(['category', 'images'])
+            ->newActive()
+            ->get();
+
+        if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
+            $products->makeHidden('buying_price');
+        }
+
+        return response()->json([
+            'success' => true,
+            'new_products' => $products
+        ]);
+    }
+
     public function recentlyViewed(Request $request)
     {
         $user = $request->user();
@@ -201,7 +224,7 @@ class ProductController extends Controller
             ]);
         }
 
-        $productIds = \App\Models\RecentlyViewed::where('user_id', $user->id)
+        $productIds = RecentlyViewed::where('user_id', $user->id)
             ->orderByDesc('updated_at')
             ->limit(10)
             ->pluck('product_id');

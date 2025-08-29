@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BannerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -93,6 +94,13 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     // User Management
     Route::get('/users/search-by-name', [AuthController::class, 'searchUserByName']);
     Route::put('/users/{userId}/promote', [AuthController::class, 'promoteToAdmin']);
+
+    Route::get('/banners/admin', [BannerController::class, 'index']);
+    Route::post('/banners', [BannerController::class, 'store']);
+    Route::get('/banners/{banner}', [BannerController::class, 'show']);
+    Route::put('/banners/{banner}', [BannerController::class, 'update']);
+    Route::delete('/banners/{banner}', [BannerController::class, 'destroy']);
+    Route::post('/banners/reorder', [BannerController::class, 'reorder']);
 });
 
 // ===========================
@@ -107,8 +115,11 @@ Route::get('/payment/whish/redirect/failure/{order_id}', [PaymentController::cla
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/trending', [ProductController::class, 'trending']);
 
+Route::get('/products/new', [ProductController::class, 'newProducts']);
+
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/products/{product}/related', [ProductController::class, 'related']);
 Route::get('/zones', [ZoneController::class, 'index']);
 
 Route::post('/contact', [ContactController::class, 'store']);
+Route::get('/banners', [\App\Http\Controllers\BannerController::class, 'publicIndex']);

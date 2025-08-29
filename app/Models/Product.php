@@ -20,7 +20,35 @@ class Product extends Model
         'is_trending',
         'regular_price',
         'discount',
+        'is_new',      // NEW
+        'new_until',   // NEW
     ];
+
+    protected $casts = [
+        'is_trending' => 'boolean',
+        'is_new'      => 'boolean',
+        'new_until'   => 'date',
+    ];
+
+    // يظهر تلقائياً في JSON
+    protected $appends = ['is_new_active'];
+
+    public function getIsNewActiveAttribute(): bool
+    {
+        if (! $this->is_new) return false;
+        if (is_null($this->new_until)) return true;
+        return now()->startOfDay()->lte($this->new_until);
+    }
+
+    // Scope للمنتجات الجديدة الفعّالة
+    public function scopeNewActive($query)
+    {
+        return $query->where('is_new', true)
+            ->where(function ($q) {
+                $q->whereNull('new_until')
+                  ->orWhereDate('new_until', '>=', now()->toDateString());
+            });
+    }
 
     public function category()
     {
