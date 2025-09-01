@@ -14,12 +14,11 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        // فيك تبدّل all() بـ paginate() إذا بتحب
-        $categories = Category::all();
+        $categories = Category::with('brands:id,name')->get();
 
         return response()->json([
-            'success' => true,
-            'categories' => $categories
+            'success'     => true,
+            'categories'  => $categories
         ]);
     }
 
@@ -28,21 +27,25 @@ class CategoryController extends Controller
      */
     public function show(Category $category)
     {
+        $category->load('brands:id,name');
+
         return response()->json([
-            'success' => true,
+            'success'  => true,
             'category' => $category
         ]);
     }
 
     /**
      * POST /api/categories
-     * Body: form-data (name, image?)
+     * Body: form-data (name, image?, brand_ids[]?)
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:255', 'unique:categories,name'],
-            'image' => ['nullable', 'image', 'max:2048'], // 2MB
+            'name'        => ['required', 'string', 'max:255', 'unique:categories,name'],
+            'image'       => ['nullable', 'image', 'max:2048'],
+            'brand_ids'   => ['nullable', 'array'],
+            'brand_ids.*' => ['integer', 'exists:brands,id'],
         ]);
 
         $data = ['name' => $validated['name']];
@@ -53,31 +56,33 @@ class CategoryController extends Controller
 
         $category = Category::create($data);
 
+        if (!empty($validated['brand_ids'])) {
+            $category->brands()->sync($validated['brand_ids']);
+        }
+
         return response()->json([
             'success'  => true,
             'message'  => 'Category created successfully',
-            'category' => $category
+            'category' => $category->load('brands:id,name'),
         ], 201);
     }
 
     /**
-     * PUT /api/categories/{category}
-     * Body: form-data (name, image?)
+     * PUT/PATCH /api/categories/{category}
+     * Body: form-data (name, image?, brand_ids[]?)
      */
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
-            'name'  => [
-                'required', 'string', 'max:255',
-                Rule::unique('categories', 'name')->ignore($category->id)
-            ],
-            'image' => ['nullable', 'image', 'max:2048'],
+            'name'        => ['required', 'string', 'max:255', Rule::unique('categories', 'name')->ignore($category->id)],
+            'image'       => ['nullable', 'image', 'max:2048'],
+            'brand_ids'   => ['nullable', 'array'],
+            'brand_ids.*' => ['integer', 'exists:brands,id'],
         ]);
 
         $update = ['name' => $validated['name']];
 
         if ($request->hasFile('image')) {
-            // احذف الصورة القديمة إذا موجودة
             if (!empty($category->image)) {
                 Storage::disk('public')->delete($category->image);
             }
@@ -86,10 +91,14 @@ class CategoryController extends Controller
 
         $category->update($update);
 
+        if ($request->has('brand_ids')) {
+            $category->brands()->sync($validated['brand_ids'] ?? []);
+        }
+
         return response()->json([
             'success'  => true,
             'message'  => 'Category updated successfully',
-            'category' => $category
+            'category' => $category->load('brands:id,name'),
         ]);
     }
 
@@ -98,7 +107,8 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category)
     {
-        // احذف الصورة من التخزين إذا موجودة
+        $category->brands()->detach();
+
         if (!empty($category->image)) {
             Storage::disk('public')->delete($category->image);
         }
@@ -107,7 +117,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Category deleted successfully'
+            'message' => 'Category deleted successfully',
         ]);
     }
 }
