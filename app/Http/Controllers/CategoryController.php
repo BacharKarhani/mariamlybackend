@@ -9,9 +9,6 @@ use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
-    /**
-     * GET /api/categories
-     */
     public function index()
     {
         $categories = Category::with('brands:id,name')->get();
@@ -22,9 +19,6 @@ class CategoryController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/categories/{category}
-     */
     public function show(Category $category)
     {
         $category->load('brands:id,name');
@@ -35,17 +29,13 @@ class CategoryController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/categories
-     * Body: form-data (name, image?, brand_ids[]?)
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255', 'unique:categories,name'],
-            'image'       => ['nullable', 'image', 'max:2048'],
-            'brand_ids'   => ['nullable', 'array'],
-            'brand_ids.*' => ['integer', 'exists:brands,id'],
+            'name'        => ['required','string','max:255','unique:categories,name'],
+            'image'       => ['nullable','image','max:2048'],
+            'brand_ids'   => ['nullable','array'],
+            'brand_ids.*' => ['integer','exists:brands,id'],
         ]);
 
         $data = ['name' => $validated['name']];
@@ -67,17 +57,13 @@ class CategoryController extends Controller
         ], 201);
     }
 
-    /**
-     * PUT/PATCH /api/categories/{category}
-     * Body: form-data (name, image?, brand_ids[]?)
-     */
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255', Rule::unique('categories', 'name')->ignore($category->id)],
-            'image'       => ['nullable', 'image', 'max:2048'],
-            'brand_ids'   => ['nullable', 'array'],
-            'brand_ids.*' => ['integer', 'exists:brands,id'],
+            'name'        => ['required','string','max:255', Rule::unique('categories','name')->ignore($category->id)],
+            'image'       => ['nullable','image','max:2048'],
+            'brand_ids'   => ['nullable','array'],
+            'brand_ids.*' => ['integer','exists:brands,id'],
         ]);
 
         $update = ['name' => $validated['name']];
@@ -102,9 +88,6 @@ class CategoryController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /api/categories/{category}
-     */
     public function destroy(Category $category)
     {
         $category->brands()->detach();

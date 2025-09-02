@@ -8,14 +8,17 @@ class Brand extends Model
 {
     protected $fillable = ['name', 'image', 'is_active'];
     protected $casts = ['is_active' => 'boolean'];
+    protected $appends = ['image_url'];
 
     public function categories()
     {
         return $this->belongsToMany(Category::class);
     }
 
-    // Optional helper if you want full URL for the image (like your Category)
-    protected $appends = ['image_url'];
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
 
     public function getImageUrlAttribute(): ?string
     {

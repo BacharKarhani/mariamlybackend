@@ -14,14 +14,15 @@ class Product extends Model
         'desc',
         'image',
         'category_id',
+        'brand_id',       // ← added
         'buying_price',
         'selling_price',
         'quantity',
         'is_trending',
         'regular_price',
         'discount',
-        'is_new',      // NEW
-        'new_until',   // NEW
+        'is_new',
+        'new_until',
     ];
 
     protected $casts = [
@@ -35,7 +36,7 @@ class Product extends Model
 
     public function getIsNewActiveAttribute(): bool
     {
-        if (! $this->is_new) return false;
+        if (!$this->is_new) return false;
         if (is_null($this->new_until)) return true;
         return now()->startOfDay()->lte($this->new_until);
     }
@@ -53,6 +54,11 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function images()

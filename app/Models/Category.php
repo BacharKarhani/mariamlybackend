@@ -10,8 +10,7 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = ['name', 'image'];
-
-    protected $appends = ['image_url']; // add this
+    protected $appends = ['image_url'];
 
     public function getImageUrlAttribute(): ?string
     {
@@ -22,5 +21,9 @@ class Category extends Model
     {
         return $this->belongsToMany(Brand::class);
     }
-}
 
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+}

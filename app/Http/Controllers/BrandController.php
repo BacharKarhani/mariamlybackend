@@ -9,9 +9,6 @@ use Illuminate\Validation\Rule;
 
 class BrandController extends Controller
 {
-    /**
-     * GET /api/brands
-     */
     public function index()
     {
         $brands = Brand::with('categories:id,name')->get();
@@ -22,9 +19,6 @@ class BrandController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/brands/{brand}
-     */
     public function show(Brand $brand)
     {
         $brand->load('categories:id,name');
@@ -35,18 +29,14 @@ class BrandController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/brands
-     * Body: form-data (name, image?, is_active?, category_ids[]?)
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:255', 'unique:brands,name'],
-            'image'         => ['nullable', 'image', 'max:2048'],
-            'is_active'     => ['nullable', 'boolean'],
-            'category_ids'  => ['nullable', 'array'],
-            'category_ids.*'=> ['integer', 'exists:categories,id'],
+            'name'           => ['required','string','max:255','unique:brands,name'],
+            'image'          => ['nullable','image','max:2048'],
+            'is_active'      => ['nullable','boolean'],
+            'category_ids'   => ['nullable','array'],
+            'category_ids.*' => ['integer','exists:categories,id'],
         ]);
 
         $data = [
@@ -71,18 +61,14 @@ class BrandController extends Controller
         ], 201);
     }
 
-    /**
-     * PUT/PATCH /api/brands/{brand}
-     * Body: form-data (name, image?, is_active?, category_ids[]?)
-     */
     public function update(Request $request, Brand $brand)
     {
         $validated = $request->validate([
-            'name'           => ['required', 'string', 'max:255', Rule::unique('brands', 'name')->ignore($brand->id)],
-            'image'          => ['nullable', 'image', 'max:2048'],
-            'is_active'      => ['nullable', 'boolean'],
-            'category_ids'   => ['nullable', 'array'],
-            'category_ids.*' => ['integer', 'exists:categories,id'],
+            'name'           => ['required','string','max:255', Rule::unique('brands','name')->ignore($brand->id)],
+            'image'          => ['nullable','image','max:2048'],
+            'is_active'      => ['nullable','boolean'],
+            'category_ids'   => ['nullable','array'],
+            'category_ids.*' => ['integer','exists:categories,id'],
         ]);
 
         $update = ['name' => $validated['name']];
@@ -111,9 +97,6 @@ class BrandController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /api/brands/{brand}
-     */
     public function destroy(Brand $brand)
     {
         $brand->categories()->detach();
