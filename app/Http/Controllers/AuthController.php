@@ -143,9 +143,9 @@ class AuthController extends Controller
         ]);
     }
 
-    public function test()
+    public function ping()
     {
-        return response()->json(['message' => 'hello ya az3arrrrr']);
+        return response()->json(['message' => 'pong']);
     }
 
     public function profile(Request $request)

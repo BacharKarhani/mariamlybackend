@@ -24,7 +24,7 @@ use App\Http\Controllers\ContactController;
 */
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/test', [AuthController::class, 'test']);
+Route::get('/ping', [AuthController::class, 'ping']);
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +42,7 @@ Route::get('/brands', [BrandController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/trending', [ProductController::class, 'trending']);
 Route::get('/products/new', [ProductController::class, 'newProducts']);
+Route::get('/products/search', [ProductController::class, 'search']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/products/{product}/related', [ProductController::class, 'related']);
 

@@ -276,4 +276,52 @@ class ProductController extends Controller
             'recently_viewed' => $products
         ]);
     }
+    
+    public function search(Request $request)
+{
+    // validation: لازم تبعت واحد على الأقل من q أو category_id أو brand_id
+    $request->validate([
+        'q'           => 'nullable|string|min:2',
+        'category_id' => 'nullable|integer|exists:categories,id',
+        'brand_id'    => 'nullable|integer|exists:brands,id',
+        'per_page'    => 'nullable|integer|min:1|max:100',
+        'page'        => 'nullable|integer|min:1',
+    ]);
+
+    if (! $request->filled('q') && ! $request->filled('category_id') && ! $request->filled('brand_id')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Provide at least one of: q, category_id, brand_id.',
+            'errors'  => ['filters' => ['At least one filter is required.']],
+        ], 422);
+    }
+
+    $perPage = (int) $request->input('per_page', 20);
+
+    $query = Product::with(['category','brand','images'])
+        ->when($request->filled('q'), function ($qq) use ($request) {
+            $q = $request->input('q');
+            $qq->where('name', 'like', "%{$q}%");
+            // إذا بدك تضيف الوصف كمان:
+            // $qq->orWhere('desc', 'like', "%{$q}%");
+        })
+        ->when($request->filled('category_id'), fn($qq) => $qq->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('brand_id'), fn($qq) => $qq->where('brand_id', $request->integer('brand_id')))
+        ->orderByDesc('id');
+
+    $products = $query->paginate($perPage);
+
+    // اخفاء buying_price عن غير الأدمن
+    $user = auth('sanctum')->user();
+    if (!$user || $user->role_id !== 1) {
+        $products->getCollection()->makeHidden('buying_price');
+    }
+
+    return response()->json([
+        'success'  => true,
+        'filters'  => $request->only(['q','category_id','brand_id']),
+        'products' => $products, // مع meta/links للباجينيشن
+    ]);
+}
+
 }
