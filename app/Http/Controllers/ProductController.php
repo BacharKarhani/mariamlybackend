@@ -12,22 +12,80 @@ use Illuminate\Support\Facades\Storage;
 class ProductController extends Controller
 {
     // Public: list all products
-    public function index(Request $request)
-    {
-        $products = Product::with(['category','brand','images'])
-            ->when($request->filled('category_id'), fn($q) => $q->where('category_id', $request->integer('category_id')))
-            ->when($request->filled('brand_id'), fn($q) => $q->where('brand_id', $request->integer('brand_id')))
-            ->get();
+// App\Http\Controllers\ProductController.php
 
-        if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
-            $products->makeHidden('buying_price');
+public function index(Request $request)
+{
+    // validate incoming filters
+    $request->validate([
+        'search'      => 'nullable|string|min:1',
+        'category_id' => 'nullable|integer|exists:categories,id',
+        'brand_id'    => 'nullable|integer|exists:brands,id',
+        'min_price'   => 'nullable|numeric|min:0',
+        'max_price'   => 'nullable|numeric|min:0',
+        'sort'        => 'nullable|in:low_to_high,high_to_low',
+        'per_page'    => 'nullable|integer|min:1|max:100',
+        'page'        => 'nullable|integer|min:1',
+    ]);
+
+    $perPage = (int) $request->input('per_page', 12);
+
+    $query = Product::with(['category','brand','images'])
+        ->when($request->filled('category_id'),
+            fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('brand_id'),
+            fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+        ->when($request->filled('search'), function ($q) use ($request) {
+            $s = trim($request->input('search'));
+            $q->where(function ($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")
+                   ->orWhere('desc', 'like', "%{$s}%");
+            });
+        })
+        // price filters on selling_price (the price you display to users)
+        ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
+            $min = (float) $request->input('min_price');
+            $max = (float) $request->input('max_price');
+            if ($min > $max) { [$min, $max] = [$max, $min]; }
+            $q->whereBetween('selling_price', [$min, $max]);
+        })
+        ->when($request->filled('min_price') && ! $request->filled('max_price'),
+            fn($q) => $q->where('selling_price', '>=', (float) $request->input('min_price')))
+        ->when(! $request->filled('min_price') && $request->filled('max_price'),
+            fn($q) => $q->where('selling_price', '<=', (float) $request->input('max_price')));
+
+    // sorting
+    $sort = $request->input('sort', 'low_to_high');
+    $query->when(true, function ($q) use ($sort) {
+        if ($sort === 'high_to_low') {
+            $q->orderBy('selling_price', 'desc');
+        } else {
+            $q->orderBy('selling_price', 'asc');
         }
+    });
 
-        return response()->json([
-            'success' => true,
-            'products' => $products
-        ]);
+    // paginate (adds meta: current_page, last_page, total, etc.)
+    $products = $query->paginate($perPage)->appends($request->query());
+
+    // hide buying_price for guests/non-admins
+    $user = auth('sanctum')->user();
+    if (! $user || $user->role_id !== 1) {
+        $products->getCollection()->makeHidden('buying_price');
     }
+
+    // ensure image_url exists for each product (if you don't add the accessor below)
+    $products->getCollection()->transform(function ($p) {
+        if (!isset($p->image_url)) {
+            $first = optional($p->images->first())->path;
+            $p->image_url = $first ? url(Storage::url($first)) : null;
+        }
+        return $p;
+    });
+
+    // Return paginator structure (your FE already handles data/last_page/total)
+    return response()->json($products);
+}
+
 
     public function show(Request $request, Product $product)
     {

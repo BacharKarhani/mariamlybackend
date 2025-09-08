@@ -10,7 +10,13 @@ class IsAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()->role_id !== 1) {
+        // be explicit about Sanctum guard & null-safety
+        $user = auth('sanctum')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if ((int) ($user->role_id ?? 0) !== 1) {
             return response()->json(['message' => 'Access denied. Admins only.'], 403);
         }
 
