@@ -73,14 +73,14 @@ public function index(Request $request)
         $products->getCollection()->makeHidden('buying_price');
     }
 
-    // ensure image_url exists for each product (if you don't add the accessor below)
-    $products->getCollection()->transform(function ($p) {
-        if (!isset($p->image_url)) {
-            $first = optional($p->images->first())->path;
-            $p->image_url = $first ? url(Storage::url($first)) : null;
-        }
-        return $p;
-    });
+    // // ensure image_url exists for each product (if you don't add the accessor below)
+    // $products->getCollection()->transform(function ($p) {
+    //     if (!isset($p->image_url)) {
+    //         $first = optional($p->images->first())->path;
+    //         $p->image_url = $first ? url(Storage::url($first)) : null;
+    //     }
+    //     return $p;
+    // });
 
     // Return paginator structure (your FE already handles data/last_page/total)
     return response()->json($products);

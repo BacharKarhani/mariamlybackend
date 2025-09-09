@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
@@ -12,9 +13,9 @@ class Product extends Model
     protected $fillable = [
         'name',
         'desc',
-        'image',
+        'image',        // legacy single-image column (optional)
         'category_id',
-        'brand_id',       // ← added
+        'brand_id',
         'buying_price',
         'selling_price',
         'quantity',
@@ -28,17 +29,44 @@ class Product extends Model
     protected $casts = [
         'is_trending' => 'boolean',
         'is_new'      => 'boolean',
-        'new_until'   => 'date',
+        'new_until'   => 'datetime',
+        'category_id' => 'integer',
+        'brand_id'    => 'integer',
     ];
 
-    // يظهر تلقائياً في JSON
-    protected $appends = ['is_new_active'];
+    // show both in JSON
+    protected $appends = ['is_new_active', 'image_url'];
 
     public function getIsNewActiveAttribute(): bool
     {
         if (!$this->is_new) return false;
         if (is_null($this->new_until)) return true;
         return now()->startOfDay()->lte($this->new_until);
+    }
+
+    // NEW: a guaranteed product image URL (with sensible fallbacks)
+    public function getImageUrlAttribute()
+    {
+        // 1) first product image (has full URL via ProductImage::getUrlAttribute)
+        if ($first = $this->images->first()) {
+            return $first->url;
+        }
+
+        // 2) legacy single image column if present
+        if (!empty($this->image)) {
+            return url(Storage::url($this->image));
+        }
+
+        // 3) optional fallbacks so cards don’t look empty
+        if ($this->brand && !empty($this->brand->image)) {
+            // if Brand has its own image_url accessor, that will already be present
+            return $this->brand->image_url ?? url(Storage::url($this->brand->image));
+        }
+        if ($this->category && !empty($this->category->image)) {
+            return $this->category->image_url ?? url(Storage::url($this->category->image));
+        }
+
+        return null;
     }
 
     // Scope للمنتجات الجديدة الفعّالة
