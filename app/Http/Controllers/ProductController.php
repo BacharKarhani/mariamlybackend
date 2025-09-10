@@ -26,6 +26,8 @@ public function index(Request $request)
         'sort'        => 'nullable|in:low_to_high,high_to_low',
         'per_page'    => 'nullable|integer|min:1|max:100',
         'page'        => 'nullable|integer|min:1',
+        'is_trending' => 'nullable|boolean',
+        'is_new'      => 'nullable|boolean',
     ]);
 
     $perPage = (int) $request->input('per_page', 12);
@@ -35,6 +37,10 @@ public function index(Request $request)
             fn($q) => $q->where('category_id', $request->integer('category_id')))
         ->when($request->filled('brand_id'),
             fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+        ->when($request->filled('is_trending'),
+            fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
+        ->when($request->filled('is_new'),
+            fn($q) => $q->where('is_new', $request->boolean('is_new')))
         ->when($request->filled('search'), function ($q) use ($request) {
             $s = trim($request->input('search'));
             $q->where(function ($qq) use ($s) {
@@ -73,19 +79,9 @@ public function index(Request $request)
         $products->getCollection()->makeHidden('buying_price');
     }
 
-    // // ensure image_url exists for each product (if you don't add the accessor below)
-    // $products->getCollection()->transform(function ($p) {
-    //     if (!isset($p->image_url)) {
-    //         $first = optional($p->images->first())->path;
-    //         $p->image_url = $first ? url(Storage::url($first)) : null;
-    //     }
-    //     return $p;
-    // });
-
     // Return paginator structure (your FE already handles data/last_page/total)
     return response()->json($products);
 }
-
 
     public function show(Request $request, Product $product)
     {
