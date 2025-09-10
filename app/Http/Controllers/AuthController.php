@@ -37,10 +37,11 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'message' => 'User registered successfully',
+            'success'      => true,
+            'message'      => 'User registered successfully',
             'access_token' => $token,
-            'token_type' => 'Bearer',
+            'token_type'   => 'Bearer',
+            'user'         => $user,
         ], 201);
     }
 
@@ -50,7 +51,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|string|email',
+            'email'    => 'required|string|email',
             'password' => 'required|string',
         ]);
 
@@ -66,10 +67,11 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'message' => 'Login successful',
+            'success'      => true,
+            'message'      => 'Login successful',
             'access_token' => $token,
-            'token_type' => 'Bearer',
+            'token_type'   => 'Bearer',
+            'user'         => $user,
         ]);
     }
 
@@ -109,12 +111,13 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => $user
+            'user'    => $user
         ]);
     }
 
-
-
+    /**
+     * Promote user to admin
+     */
     public function promoteToAdmin(Request $request, $userId)
     {
         if ($request->user()->role_id !== 1) {
@@ -139,7 +142,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'User promoted to admin successfully.',
-            'user' => $user
+            'user'    => $user
         ]);
     }
 
@@ -152,7 +155,7 @@ class AuthController extends Controller
     {
         return response()->json([
             'success' => true,
-            'user' => $request->user()
+            'user'    => $request->user()
         ]);
     }
 
@@ -161,48 +164,41 @@ class AuthController extends Controller
      */
     public function changePassword(Request $request)
     {
-        // Manual validation without 'confirmed' rule
         $request->validate([
-            'old_password' => 'required|string',
-            'new_password' => 'required|string|min:6',
-            'new_password_confirmation' => 'required|string|min:6',
+            'old_password'             => 'required|string',
+            'new_password'             => 'required|string|min:6',
+            'new_password_confirmation'=> 'required|string|min:6',
         ]);
-    
+
         $user = $request->user();
-    
-        // Check if new password matches confirmation manually
+
         if ($request->new_password !== $request->new_password_confirmation) {
             return response()->json([
                 'success' => false,
                 'message' => 'New password and confirmation do not match.'
             ], 422);
         }
-    
-        // Check old password is correct
+
         if (! Hash::check($request->old_password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Old password is incorrect.'
             ], 403);
         }
-    
-        // Prevent using the same password again
+
         if (Hash::check($request->new_password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'New password cannot be the same as the old password.'
             ], 422);
         }
-    
-        // Save new password
+
         $user->password = Hash::make($request->new_password);
         $user->save();
-    
+
         return response()->json([
             'success' => true,
             'message' => 'Password changed successfully.'
         ]);
     }
-    
-    
 }
