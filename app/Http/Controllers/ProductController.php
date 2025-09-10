@@ -378,4 +378,76 @@ public function index(Request $request)
     ]);
 }
 
+// Public: discounted products (offers)
+public function discounted(Request $request)
+{
+    $request->validate([
+        'min_discount' => 'nullable|numeric|min:0|max:100', // حد أدنى للخصم (افتراضي 0+)
+        'per_page'     => 'nullable|integer|min:1|max:100',
+        'page'         => 'nullable|integer|min:1',
+        // اختياري: ترتيب حسب نسبة الخصم أو السعر
+        'sort'         => 'nullable|in:discount_high,discount_low,price_low,price_high,latest',
+        // فلاتر اختيارية (نفس ستايل index)
+        'category_id'  => 'nullable|integer|exists:categories,id',
+        'brand_id'     => 'nullable|integer|exists:brands,id',
+        'search'       => 'nullable|string|min:1',
+    ]);
+
+    $perPage     = (int) $request->input('per_page', 12);
+    $minDiscount = (float) $request->input('min_discount', 0);
+
+    $query = Product::with(['category','brand','images'])
+        ->where('discount', '>', $minDiscount)
+        // (اختياري) نتأكد إنّ السعر المبيع أقل من العادي فعلاً
+        ->whereColumn('selling_price', '<', 'regular_price')
+        ->when($request->filled('category_id'),
+            fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('brand_id'),
+            fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+        ->when($request->filled('search'), function ($q) use ($request) {
+            $s = trim($request->input('search'));
+            $q->where(function ($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")
+                   ->orWhere('desc', 'like', "%{$s}%");
+            });
+        });
+
+    // الترتيب
+    $sort = $request->input('sort', 'discount_high');
+    $query->when(true, function ($q) use ($sort) {
+        switch ($sort) {
+            case 'discount_low':
+                $q->orderBy('discount', 'asc');
+                break;
+            case 'price_low':
+                $q->orderBy('selling_price', 'asc');
+                break;
+            case 'price_high':
+                $q->orderBy('selling_price', 'desc');
+                break;
+            case 'latest':
+                $q->orderBy('id', 'desc');
+                break;
+            case 'discount_high':
+            default:
+                $q->orderBy('discount', 'desc');
+                break;
+        }
+    });
+
+    $products = $query->paginate($perPage)->appends($request->query());
+
+    // إخفاء buying_price لغير الأدمن
+    $user = auth('sanctum')->user();
+    if (! $user || $user->role_id !== 1) {
+        $products->getCollection()->makeHidden('buying_price');
+    }
+
+    return response()->json([
+        'success'             => true,
+        'filters'             => $request->only(['min_discount','category_id','brand_id','search','sort']),
+        'discounted_products' => $products, // paginator with meta/links
+    ]);
+}
+
 }

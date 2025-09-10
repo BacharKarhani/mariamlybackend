@@ -56,6 +56,7 @@ Route::get('/banners', [BannerController::class, 'publicIndex']);
 
 // Contact
 Route::post('/contact', [ContactController::class, 'store']);
+Route::get('/products/discounted', [ProductController::class, 'discounted']);
 
 /*
 |--------------------------------------------------------------------------
