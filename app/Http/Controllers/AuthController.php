@@ -120,25 +120,26 @@ class AuthController extends Controller
      */
     public function promoteToAdmin(Request $request, $userId)
     {
-        if ($request->user()->role_id !== 1) {
+        // Change this line from !== to !=
+        if ($request->user()->role_id != 1) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. Only admins can promote users.'
             ], 403);
         }
-
+    
         $user = User::find($userId);
-
+    
         if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'User not found.'
             ], 404);
         }
-
+    
         $user->role_id = 1;
         $user->save();
-
+    
         return response()->json([
             'success' => true,
             'message' => 'User promoted to admin successfully.',
