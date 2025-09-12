@@ -115,6 +115,8 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
+    Route::get('/users/count', [AuthController::class, 'totalUsers']);
+    Route::get('/products/count', [ProductController::class, 'totalCount']);
 
     // Categories (admin CRUD)
     Route::post('/categories', [CategoryController::class, 'store']);

@@ -450,4 +450,17 @@ public function discounted(Request $request)
     ]);
 }
 
+public function totalCount(Request $request)
+{
+    // زيادة أمان: الجروب فيه is_admin بس منضيف الحارس كمان
+    if ($request->user()->role_id != 1) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    // لو بتستعمل SoftDeletes وبدك تشمل المحذوفين: Product::withTrashed()->count();
+    $count = Product::count();
+
+    return response()->json(['total' => $count], 200);
+}
+
 }

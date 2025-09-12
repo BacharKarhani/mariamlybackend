@@ -202,4 +202,13 @@ class AuthController extends Controller
             'message' => 'Password changed successfully.'
         ]);
     }
+    public function totalUsers(Request $request)
+{
+    // extra safety: group already has is_admin, but we keep this guard
+    if ($request->user()->role_id != 1) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    return response()->json(['total' => User::count()], 200);
+}
 }
