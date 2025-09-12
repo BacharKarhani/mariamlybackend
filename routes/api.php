@@ -107,6 +107,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders (self)
     Route::get('/orders/my', [OrderController::class, 'myOrders']);
+    Route::get('/orders/my/by-month', [OrderController::class, 'myOrdersByMonth']);
+    Route::get('/orders/my/month/{year}/{month}', [OrderController::class, 'getOrdersForMonth']);
+    Route::get('/orders/my/history', [OrderController::class, 'myOrderHistory']);
 });
 
 /*
@@ -136,6 +139,9 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
 
     // Orders (admin)
     Route::get('/orders', [OrderController::class, 'indexPaginated']);
+    Route::get('/orders/by-month', [OrderController::class, 'getAllOrdersByMonth']);
+    Route::get('/orders/monthly-stats', [OrderController::class, 'getMonthlyStats']);
+    Route::get('/orders/monthly-comparison', [OrderController::class, 'getMonthlyComparison']);
     Route::get('/orders/{order_id}', [OrderController::class, 'show'])->whereNumber('order_id');
     Route::put('/orders/{order_id}/update-status', [OrderController::class, 'updateStatus'])->whereNumber('order_id');
     Route::get('/orders/{order_id}/profit', [OrderController::class, 'getOrderProfit'])->whereNumber('order_id');

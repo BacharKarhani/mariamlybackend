@@ -40,4 +40,46 @@ class Order extends Model
     {
         return $this->hasMany(OrderProduct::class, 'order_id', 'order_id');
     }
+
+    // Helper methods for date formatting
+    public function getFormattedDateAttribute()
+    {
+        return $this->date_added->format('M d, Y');
+    }
+
+    public function getMonthYearAttribute()
+    {
+        return $this->date_added->format('Y-m');
+    }
+
+    public function getMonthNameAttribute()
+    {
+        return $this->date_added->format('F Y');
+    }
+
+    // Scope for filtering by month
+    public function scopeForMonth($query, $year, $month)
+    {
+        $startDate = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = \Carbon\Carbon::create($year, $month, 1)->endOfMonth();
+        
+        return $query->whereBetween('date_added', [$startDate, $endDate]);
+    }
+
+    // Scope for filtering by year
+    public function scopeForYear($query, $year)
+    {
+        $startDate = \Carbon\Carbon::create($year, 1, 1)->startOfYear();
+        $endDate = \Carbon\Carbon::create($year, 12, 31)->endOfYear();
+        
+        return $query->whereBetween('date_added', [$startDate, $endDate]);
+    }
+
+    // Scope for recent orders (last N months)
+    public function scopeRecent($query, $months = 6)
+    {
+        $startDate = now()->subMonths($months)->startOfMonth();
+        
+        return $query->where('date_added', '>=', $startDate);
+    }
 }
