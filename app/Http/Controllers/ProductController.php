@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use App\Models\RecentlyViewed;
 use App\Models\Brand;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ public function index(Request $request)
 
     $perPage = (int) $request->input('per_page', 12);
 
-    $query = Product::with(['category','subcategory','brand','images'])
+    $query = Product::with(['category','subcategory','brand','variants.images'])
         ->when($request->filled('category_id'),
             fn($q) => $q->where('category_id', $request->integer('category_id')))
         ->when($request->filled('subcategory_id'),
@@ -88,7 +89,7 @@ public function index(Request $request)
 
     public function show(Request $request, Product $product)
     {
-        $product->load(['category','subcategory','brand','images']);
+        $product->load(['category','subcategory','brand','variants.images']);
 
         // Hide buying price from non-admins or guests
         $user = auth('sanctum')->user();
@@ -110,7 +111,7 @@ public function index(Request $request)
         ]);
     }
 
-    // Admin: create product with multiple images
+    // Admin: create product with variants and images
     public function store(Request $request)
     {
         $request->validate([
@@ -124,9 +125,12 @@ public function index(Request $request)
             'discount'      => 'nullable|numeric|min:0|max:100',
             'quantity'      => 'required|integer|min:0',
             'is_trending'   => 'sometimes|boolean',
-            'images.*'      => 'nullable|image|max:2048',
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
+            'variants'      => 'required|array|min:1',
+            'variants.*.color' => 'required|string|max:50',
+            'variants.*.images' => 'required|array|min:1',
+            'variants.*.images.*' => 'required|image|max:2048',
         ]);
 
         // Brand and category are now independent - no restriction needed
@@ -151,17 +155,23 @@ public function index(Request $request)
             'new_until'     => $request->new_until,
         ]);
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
+        // Create variants with their images
+        foreach ($request->variants as $variantData) {
+            $variant = $product->variants()->create([
+                'color' => $variantData['color']
+            ]);
+
+            // Store images for this variant
+            foreach ($variantData['images'] as $image) {
                 $path = $image->store('products', 'public');
-                $product->images()->create(['path' => $path]);
+                $variant->images()->create(['path' => $path]);
             }
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'product' => $product->load('images','category','subcategory','brand')
+            'product' => $product->load('variants.images','category','subcategory','brand')
         ], 201);
     }
 
@@ -219,12 +229,15 @@ public function index(Request $request)
         ]);
     }
 
-    // Admin: delete product and all related images
+    // Admin: delete product and all related variants and images
     public function destroy(Product $product)
     {
-        foreach ($product->images as $image) {
-            Storage::disk('public')->delete($image->path);
-            $image->delete();
+        // Delete all variant images
+        foreach ($product->variants as $variant) {
+            foreach ($variant->images as $image) {
+                Storage::disk('public')->delete($image->path);
+                $image->delete();
+            }
         }
 
         $product->delete();
@@ -239,7 +252,7 @@ public function index(Request $request)
     {
         $related = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
-            ->with(['category','brand','images'])
+            ->with(['category','brand','variants.images'])
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
@@ -255,7 +268,7 @@ public function index(Request $request)
     // Get all trending products
     public function trending()
     {
-        $products = Product::with(['category','brand','images'])
+        $products = Product::with(['category','brand','variants.images'])
             ->where('is_trending', true)
             ->get();
 
@@ -272,7 +285,7 @@ public function index(Request $request)
     // NEW: قائمة المنتجات الجديدة (فعّالة بحسب is_new/new_until)
     public function newProducts()
     {
-        $products = Product::with(['category','brand','images'])
+        $products = Product::with(['category','brand','variants.images'])
             ->newActive()
             ->get();
 
@@ -302,7 +315,7 @@ public function index(Request $request)
             ->limit(10)
             ->pluck('product_id');
 
-        $products = Product::with(['category','brand','images'])
+        $products = Product::with(['category','brand','variants.images'])
             ->whereIn('id', $productIds)
             ->get();
 
@@ -337,7 +350,7 @@ public function index(Request $request)
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['category','brand','images'])
+    $query = Product::with(['category','brand','variants.images'])
         ->when($request->filled('q'), function ($qq) use ($request) {
             $q = $request->input('q');
             $qq->where('name', 'like', "%{$q}%");
@@ -381,7 +394,7 @@ public function discounted(Request $request)
     $perPage     = (int) $request->input('per_page', 12);
     $minDiscount = (float) $request->input('min_discount', 0);
 
-    $query = Product::with(['category','brand','images'])
+    $query = Product::with(['category','brand','variants.images'])
         ->where('discount', '>', $minDiscount)
         // (اختياري) نتأكد إنّ السعر المبيع أقل من العادي فعلاً
         ->whereColumn('selling_price', '<', 'regular_price')
@@ -468,7 +481,7 @@ public function indexAdmin(Request $request)
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['category','subcategory','brand','images'])
+    $query = Product::with(['category','subcategory','brand','variants.images'])
         ->when($request->filled('category_id'),
             fn($q) => $q->where('category_id', $request->integer('category_id')))
         ->when($request->filled('subcategory_id'),
@@ -548,7 +561,7 @@ public function adminSearch(Request $request)
     $perPage = (int) $request->input('per_page', 20);
 
     // Start query
-    $query = Product::with(['category','brand','images']);
+    $query = Product::with(['category','brand','variants.images']);
 
     // If you use SoftDeletes and want to include trashed records
     if ($request->boolean('include_deleted') && in_array('Illuminate\\Database\\Eloquent\\SoftDeletes', class_uses(Product::class))) {

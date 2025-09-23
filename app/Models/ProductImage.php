@@ -10,14 +10,19 @@ class ProductImage extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'path'];
+    protected $fillable = ['variant_id', 'path'];
 
     // Make "url" appear in JSON
     protected $appends = ['url'];
 
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->hasOneThrough(Product::class, ProductVariant::class, 'id', 'id', 'variant_id', 'product_id');
     }
 
     public function getUrlAttribute()

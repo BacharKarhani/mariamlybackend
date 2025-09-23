@@ -9,6 +9,7 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SubcategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\AddressController;
@@ -157,6 +158,15 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{product}', [ProductController::class, 'update'])->whereNumber('product');
     Route::delete('/products/{product}', [ProductController::class, 'destroy'])->whereNumber('product');
+
+    // Product Variants (admin CRUD)
+    Route::get('/products/{product}/variants', [ProductVariantController::class, 'index'])->whereNumber('product');
+    Route::get('/variants/{variant}', [ProductVariantController::class, 'show'])->whereNumber('variant');
+    Route::post('/products/{product}/variants', [ProductVariantController::class, 'store'])->whereNumber('product');
+    Route::put('/variants/{variant}', [ProductVariantController::class, 'update'])->whereNumber('variant');
+    Route::delete('/variants/{variant}', [ProductVariantController::class, 'destroy'])->whereNumber('variant');
+    Route::post('/variants/{variant}/images', [ProductVariantController::class, 'addImages'])->whereNumber('variant');
+    Route::delete('/variants/{variant}/images/{image}', [ProductVariantController::class, 'removeImage'])->whereNumber('variant')->whereNumber('image');
 
     // Orders (admin)
     Route::get('/orders', [OrderController::class, 'indexPaginated']);

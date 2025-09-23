@@ -49,9 +49,11 @@ class Product extends Model
     // NEW: a guaranteed product image URL (with sensible fallbacks)
     public function getImageUrlAttribute()
     {
-        // 1) first product image (has full URL via ProductImage::getUrlAttribute)
-        if ($first = $this->images->first()) {
-            return $first->url;
+        // 1) first variant's first image (has full URL via ProductImage::getUrlAttribute)
+        if ($firstVariant = $this->variants->first()) {
+            if ($firstImage = $firstVariant->images->first()) {
+                return $firstImage->url;
+            }
         }
 
         // 2) legacy single image column if present
@@ -59,7 +61,7 @@ class Product extends Model
             return url(Storage::url($this->image));
         }
 
-        // 3) optional fallbacks so cards don’t look empty
+        // 3) optional fallbacks so cards don't look empty
         if ($this->brand && !empty($this->brand->image)) {
             // if Brand has its own image_url accessor, that will already be present
             return $this->brand->image_url ?? url(Storage::url($this->brand->image));
@@ -99,6 +101,11 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
     }
 
     public function recentlyViewed()
