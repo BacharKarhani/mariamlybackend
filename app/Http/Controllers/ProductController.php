@@ -20,6 +20,7 @@ public function index(Request $request)
     $request->validate([
         'search'      => 'nullable|string|min:1',
         'category_id' => 'nullable|integer|exists:categories,id',
+        'subcategory_id' => 'nullable|integer|exists:subcategories,id',
         'brand_id'    => 'nullable|integer|exists:brands,id',
         'min_price'   => 'nullable|numeric|min:0',
         'max_price'   => 'nullable|numeric|min:0',
@@ -32,9 +33,11 @@ public function index(Request $request)
 
     $perPage = (int) $request->input('per_page', 12);
 
-    $query = Product::with(['category','brand','images'])
+    $query = Product::with(['category','subcategory','brand','images'])
         ->when($request->filled('category_id'),
             fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('subcategory_id'),
+            fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
         ->when($request->filled('brand_id'),
             fn($q) => $q->where('brand_id', $request->integer('brand_id')))
         ->when($request->filled('is_trending'),
@@ -85,7 +88,7 @@ public function index(Request $request)
 
     public function show(Request $request, Product $product)
     {
-        $product->load(['category','brand','images']);
+        $product->load(['category','subcategory','brand','images']);
 
         // Hide buying price from non-admins or guests
         $user = auth('sanctum')->user();
@@ -114,6 +117,7 @@ public function index(Request $request)
             'name'          => 'required|string',
             'desc'          => 'nullable|string',
             'category_id'   => 'required|exists:categories,id',
+            'subcategory_id' => 'nullable|exists:subcategories,id',
             'brand_id'      => 'required|exists:brands,id',
             'buying_price'  => 'required|numeric|min:0',
             'regular_price' => 'required|numeric|min:0',
@@ -135,6 +139,7 @@ public function index(Request $request)
             'name'          => $request->name,
             'desc'          => $request->desc,
             'category_id'   => $request->category_id,
+            'subcategory_id' => $request->subcategory_id,
             'brand_id'      => $request->brand_id,
             'buying_price'  => $request->buying_price,
             'regular_price' => $regularPrice,
@@ -156,7 +161,7 @@ public function index(Request $request)
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'product' => $product->load('images','category','brand')
+            'product' => $product->load('images','category','subcategory','brand')
         ], 201);
     }
 
@@ -166,6 +171,7 @@ public function index(Request $request)
             'name'          => 'required|string',
             'desc'          => 'nullable|string',
             'category_id'   => 'required|exists:categories,id',
+            'subcategory_id' => 'nullable|exists:subcategories,id',
             'brand_id'      => 'required|exists:brands,id',
             'buying_price'  => 'required|numeric|min:0',
             'regular_price' => 'required|numeric|min:0',
@@ -187,6 +193,7 @@ public function index(Request $request)
             'name'          => $request->name,
             'desc'          => $request->desc,
             'category_id'   => $request->category_id,
+            'subcategory_id' => $request->subcategory_id,
             'brand_id'      => $request->brand_id,
             'buying_price'  => $request->buying_price,
             'regular_price' => $regularPrice,
@@ -208,7 +215,7 @@ public function index(Request $request)
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'product' => $product->load('images','category','brand')
+            'product' => $product->load('images','category','subcategory','brand')
         ]);
     }
 
@@ -461,9 +468,11 @@ public function indexAdmin(Request $request)
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['category','brand','images'])
+    $query = Product::with(['category','subcategory','brand','images'])
         ->when($request->filled('category_id'),
             fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('subcategory_id'),
+            fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
         ->when($request->filled('brand_id'),
             fn($q) => $q->where('brand_id', $request->integer('brand_id')))
         ->when($request->filled('is_trending'),

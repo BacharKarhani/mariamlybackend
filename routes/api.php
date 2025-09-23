@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\SubcategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\CartController;
@@ -35,6 +36,11 @@ Route::get('/ping', [AuthController::class, 'ping']);
 // Categories (public list + public show)
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);
+
+// Subcategories (public list + public show)
+Route::get('/subcategories', [SubcategoryController::class, 'index']);
+Route::get('/subcategories/{subcategory}', [SubcategoryController::class, 'show']);
+Route::get('/categories/{categoryId}/subcategories', [SubcategoryController::class, 'getByCategory']);
 
 // Brands (public list + public show)
 Route::get('/brands', [BrandController::class, 'index']);
@@ -128,6 +134,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->whereNumber('category');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->whereNumber('category');
+
+    // Subcategories (admin CRUD)
+    Route::post('/subcategories', [SubcategoryController::class, 'store']);
+    Route::put('/subcategories/{subcategory}', [SubcategoryController::class, 'update'])->whereNumber('subcategory');
+    Route::delete('/subcategories/{subcategory}', [SubcategoryController::class, 'destroy'])->whereNumber('subcategory');
 
     // Brands (admin CRUD)
     Route::post('/brands', [BrandController::class, 'store']);

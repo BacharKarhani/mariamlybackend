@@ -15,6 +15,7 @@ class Product extends Model
         'desc',
         'image',        // legacy single-image column (optional)
         'category_id',
+        'subcategory_id',
         'brand_id',
         'buying_price',
         'selling_price',
@@ -31,6 +32,7 @@ class Product extends Model
         'is_new'      => 'boolean',
         'new_until'   => 'datetime',
         'category_id' => 'integer',
+        'subcategory_id' => 'integer',
         'brand_id'    => 'integer',
     ];
 
@@ -82,6 +84,11 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function subcategory()
+    {
+        return $this->belongsTo(Subcategory::class);
     }
 
     public function brand()

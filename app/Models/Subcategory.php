@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Category extends Model
+class Subcategory extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'image'];
+    protected $fillable = ['name', 'image', 'category_id'];
     protected $appends = ['image_url'];
 
     public function getImageUrlAttribute(): ?string
@@ -17,18 +17,13 @@ class Category extends Model
         return $this->image ? asset('storage/' . $this->image) : null;
     }
 
-    public function brands()
+    public function category()
     {
-        return $this->belongsToMany(Brand::class);
+        return $this->belongsTo(Category::class);
     }
 
     public function products()
     {
         return $this->hasMany(Product::class);
-    }
-
-    public function subcategories()
-    {
-        return $this->hasMany(Subcategory::class);
     }
 }
