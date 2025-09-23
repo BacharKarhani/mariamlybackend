@@ -18,6 +18,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactInfoController;
+use App\Http\Controllers\NewsletterSubscriptionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,6 +68,10 @@ Route::post('/contact', [ContactController::class, 'store']);
 Route::get('/contact-info', [ContactInfoController::class, 'index']);
 
 Route::get('/products/discounted', [ProductController::class, 'discounted']);
+
+// Newsletter Subscription (Public)
+Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store']);
+Route::post('/newsletter/unsubscribe', [NewsletterSubscriptionController::class, 'unsubscribe']);
 
 /*
 |--------------------------------------------------------------------------
@@ -177,4 +182,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
 
     Route::get('/admin/contact-info', [ContactInfoController::class, 'adminIndex']);
     Route::put('/admin/contact-info', [ContactInfoController::class, 'update']);
+
+    // Newsletter Subscriptions (Admin)
+    Route::get('/newsletter-subscriptions', [NewsletterSubscriptionController::class, 'index']);
+    Route::get('/newsletter-subscriptions/{id}', [NewsletterSubscriptionController::class, 'show']);
+    Route::put('/newsletter-subscriptions/{id}', [NewsletterSubscriptionController::class, 'update']);
+    Route::delete('/newsletter-subscriptions/{id}', [NewsletterSubscriptionController::class, 'destroy']);
+    Route::get('/newsletter-subscriptions/stats/overview', [NewsletterSubscriptionController::class, 'stats']);
 });
