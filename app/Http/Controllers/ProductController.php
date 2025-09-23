@@ -125,18 +125,7 @@ public function index(Request $request)
             'new_until'     => 'nullable|date',
         ]);
 
-        // Ensure brand belongs to category
-        $brandBelongsToCategory = Brand::whereKey($request->brand_id)
-            ->whereHas('categories', fn($q) => $q->where('categories.id', $request->category_id))
-            ->exists();
-
-        if (! $brandBelongsToCategory) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected brand is not linked to the selected category.',
-                'errors'  => ['brand_id' => ['Brand does not belong to the chosen category.']]
-            ], 422);
-        }
+        // Brand and category are now independent - no restriction needed
 
         $regularPrice  = $request->regular_price;
         $discount      = $request->discount ?? 0;
@@ -188,18 +177,7 @@ public function index(Request $request)
             'new_until'     => 'nullable|date',
         ]);
 
-        // Ensure brand belongs to category
-        $brandBelongsToCategory = Brand::whereKey($request->brand_id)
-            ->whereHas('categories', fn($q) => $q->where('categories.id', $request->category_id))
-            ->exists();
-
-        if (! $brandBelongsToCategory) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected brand is not linked to the selected category.',
-                'errors'  => ['brand_id' => ['Brand does not belong to the chosen category.']]
-            ], 422);
-        }
+        // Brand and category are now independent - no restriction needed
 
         $regularPrice  = $request->regular_price;
         $discount      = $request->discount ?? 0;
@@ -463,4 +441,145 @@ public function totalCount(Request $request)
     return response()->json(['total' => $count], 200);
 }
 
+// Admin: Get all products with full details (including buying_price)
+public function indexAdmin(Request $request)
+{
+    // Validate incoming filters
+    $request->validate([
+        'search'      => 'nullable|string|min:1',
+        'category_id' => 'nullable|integer|exists:categories,id',
+        'brand_id'    => 'nullable|integer|exists:brands,id',
+        'min_price'   => 'nullable|numeric|min:0',
+        'max_price'   => 'nullable|numeric|min:0',
+        'sort'        => 'nullable|in:low_to_high,high_to_low,newest,oldest',
+        'per_page'    => 'nullable|integer|min:1|max:100',
+        'page'        => 'nullable|integer|min:1',
+        'is_trending' => 'nullable|boolean',
+        'is_new'      => 'nullable|boolean',
+        'show_inactive' => 'nullable|boolean', // Show products with 0 quantity
+    ]);
+
+    $perPage = (int) $request->input('per_page', 20);
+
+    $query = Product::with(['category','brand','images'])
+        ->when($request->filled('category_id'),
+            fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('brand_id'),
+            fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+        ->when($request->filled('is_trending'),
+            fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
+        ->when($request->filled('is_new'),
+            fn($q) => $q->where('is_new', $request->boolean('is_new')))
+        ->when($request->filled('search'), function ($q) use ($request) {
+            $s = trim($request->input('search'));
+            $q->where(function ($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")
+                   ->orWhere('desc', 'like', "%{$s}%");
+            });
+        })
+        // Price filters on selling_price
+        ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
+            $min = (float) $request->input('min_price');
+            $max = (float) $request->input('max_price');
+            if ($min > $max) { [$min, $max] = [$max, $min]; }
+            $q->whereBetween('selling_price', [$min, $max]);
+        })
+        ->when($request->filled('min_price') && ! $request->filled('max_price'),
+            fn($q) => $q->where('selling_price', '>=', (float) $request->input('min_price')))
+        ->when(! $request->filled('min_price') && $request->filled('max_price'),
+            fn($q) => $q->where('selling_price', '<=', (float) $request->input('max_price')))
+        // Show/hide inactive products (quantity = 0)
+        ->when(!$request->boolean('show_inactive'), 
+            fn($q) => $q->where('quantity', '>', 0));
+
+    // Sorting
+    $sort = $request->input('sort', 'newest');
+    $query->when(true, function ($q) use ($sort) {
+        switch ($sort) {
+            case 'low_to_high':
+                $q->orderBy('selling_price', 'asc');
+                break;
+            case 'high_to_low':
+                $q->orderBy('selling_price', 'desc');
+                break;
+            case 'oldest':
+                $q->orderBy('id', 'asc');
+                break;
+            case 'newest':
+            default:
+                $q->orderBy('id', 'desc');
+                break;
+        }
+    });
+
+    // Paginate
+    $products = $query->paginate($perPage)->appends($request->query());
+
+    // Admin sees all fields including buying_price
+    return response()->json([
+        'success' => true,
+        'products' => $products
+    ]);
+}
+
+public function adminSearch(Request $request)
+{
+    // Admin-only search (guarded by is_admin middleware in routes)
+    $request->validate([
+        'q'              => 'nullable|string|min:1',   // search by product name
+        'id'             => 'nullable|integer',        // optional exact ID search
+        'category_id'    => 'nullable|integer|exists:categories,id',
+        'brand_id'       => 'nullable|integer|exists:brands,id',
+        'per_page'       => 'nullable|integer|min:1|max:100',
+        'page'           => 'nullable|integer|min:1',
+        'sort'           => 'nullable|in:latest,price_low,price_high,name_asc,name_desc',
+        'include_deleted'=> 'nullable|boolean',        // if you use SoftDeletes
+    ]);
+
+    $perPage = (int) $request->input('per_page', 20);
+
+    // Start query
+    $query = Product::with(['category','brand','images']);
+
+    // If you use SoftDeletes and want to include trashed records
+    if ($request->boolean('include_deleted') && in_array('Illuminate\\Database\\Eloquent\\SoftDeletes', class_uses(Product::class))) {
+        $query->withTrashed();
+    }
+
+    // Filters
+    $query
+        ->when($request->filled('id'), fn($q) => $q->where('id', $request->integer('id')))
+        ->when($request->filled('q'), fn($q) => $q->where('name', 'like', '%'.$request->input('q').'%'))
+        ->when($request->filled('category_id'), fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('brand_id'), fn($q) => $q->where('brand_id', $request->integer('brand_id')));
+
+    // Sorting
+    switch ($request->input('sort', 'latest')) {
+        case 'price_low':
+            $query->orderBy('selling_price', 'asc');
+            break;
+        case 'price_high':
+            $query->orderBy('selling_price', 'desc');
+            break;
+        case 'name_asc':
+            $query->orderBy('name', 'asc');
+            break;
+        case 'name_desc':
+            $query->orderBy('name', 'desc');
+            break;
+        case 'latest':
+        default:
+            $query->orderBy('id', 'desc');
+            break;
+    }
+
+    $products = $query->paginate($perPage)->appends($request->query());
+
+    // IMPORTANT: Do NOT hide buying_price here — route is already protected by is_admin
+    return response()->json([
+        'success'  => true,
+        'filters'  => $request->only(['q','id','category_id','brand_id','sort','include_deleted']),
+        'products' => $products,
+    ]);
+}
 }

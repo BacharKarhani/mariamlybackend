@@ -58,7 +58,6 @@ Route::get('/banners', [BannerController::class, 'publicIndex']);
 // Contact
 Route::post('/contact', [ContactController::class, 'store']);
 
-// Contact Information (public)
 Route::get('/contact-info', [ContactInfoController::class, 'index']);
 
 Route::get('/products/discounted', [ProductController::class, 'discounted']);
@@ -122,6 +121,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/users/count', [AuthController::class, 'totalUsers']);
     Route::get('/products/count', [ProductController::class, 'totalCount']);
+    Route::get('/products/admin', [ProductController::class, 'indexAdmin']);
+    Route::get('/products/admin/search', [ProductController::class, 'adminSearch']);
 
     // Categories (admin CRUD)
     Route::post('/categories', [CategoryController::class, 'store']);
@@ -135,6 +136,8 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/brands/{brand}', [BrandController::class, 'show'])->whereNumber('brand');
 
     // Products (admin CRUD)
+    Route::get('/admin/products', [ProductController::class, 'indexAdmin']); // Admin products list
+
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{product}', [ProductController::class, 'update'])->whereNumber('product');
     Route::delete('/products/{product}', [ProductController::class, 'destroy'])->whereNumber('product');
@@ -145,8 +148,12 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::put('/orders/{order_id}/update-status', [OrderController::class, 'updateStatus'])->whereNumber('order_id');
     Route::get('/orders/{order_id}/profit', [OrderController::class, 'getOrderProfit'])->whereNumber('order_id');
 
+    // NEW: Orders stats
+    Route::get('/orders/stats/count-by-month', [OrderController::class, 'countByMonth']);
+    Route::get('/orders/stats/profit-by-month', [OrderController::class, 'profitByMonth']);
     // Users (admin)
     Route::get('/users/search-by-name', [AuthController::class, 'searchUserByName']);
+   
     Route::put('/users/{userId}/promote', [AuthController::class, 'promoteToAdmin'])->whereNumber('userId');
 
     // Banners (admin)
@@ -157,7 +164,6 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::delete('/banners/{banner}', [BannerController::class, 'destroy'])->whereNumber('banner');
     Route::post('/banners/reorder', [BannerController::class, 'reorder']);
 
-    // Contact Information (admin)
     Route::get('/admin/contact-info', [ContactInfoController::class, 'adminIndex']);
     Route::put('/admin/contact-info', [ContactInfoController::class, 'update']);
 });
