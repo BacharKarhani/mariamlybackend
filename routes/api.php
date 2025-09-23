@@ -16,6 +16,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactInfoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +57,10 @@ Route::get('/banners', [BannerController::class, 'publicIndex']);
 
 // Contact
 Route::post('/contact', [ContactController::class, 'store']);
+
+// Contact Information (public)
+Route::get('/contact-info', [ContactInfoController::class, 'index']);
+
 Route::get('/products/discounted', [ProductController::class, 'discounted']);
 
 /*
@@ -151,4 +156,8 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::put('/banners/{banner}', [BannerController::class, 'update'])->whereNumber('banner');
     Route::delete('/banners/{banner}', [BannerController::class, 'destroy'])->whereNumber('banner');
     Route::post('/banners/reorder', [BannerController::class, 'reorder']);
+
+    // Contact Information (admin)
+    Route::get('/admin/contact-info', [ContactInfoController::class, 'adminIndex']);
+    Route::put('/admin/contact-info', [ContactInfoController::class, 'update']);
 });
