@@ -132,13 +132,11 @@ Authorization: Bearer {token}
   - `active`: Subscriptions that are not unsubscribed (unsubscribed_at is null)
   - `inactive`: Subscriptions that are unsubscribed (unsubscribed_at is not null)
   - `all`: All subscriptions
-- `per_page` (optional): Number of results per page (1-100) - default: 20
-- `page` (optional): Page number - default: 1
 - `search` (optional): Search by email or name
 
 **Example Request:**
 ```bash
-GET /api/newsletter-subscriptions?status=active&per_page=10&search=john
+GET /api/newsletter-subscriptions?status=active&search=john
 Authorization: Bearer YOUR_TOKEN
 ```
 
@@ -146,31 +144,26 @@ Authorization: Bearer YOUR_TOKEN
 ```json
 {
   "success": true,
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 1,
-        "email": "john.doe@example.com",
-        "name": "John Doe",
-        "subscribed_at": "2025-09-23T10:00:00.000000Z",
-        "unsubscribed_at": null,
-        "created_at": "2025-09-23T10:00:00.000000Z",
-        "updated_at": "2025-09-23T10:00:00.000000Z"
-      }
-    ],
-    "first_page_url": "http://127.0.0.1:8000/api/newsletter-subscriptions?page=1",
-    "from": 1,
-    "last_page": 1,
-    "last_page_url": "http://127.0.0.1:8000/api/newsletter-subscriptions?page=1",
-    "links": [...],
-    "next_page_url": null,
-    "path": "http://127.0.0.1:8000/api/newsletter-subscriptions",
-    "per_page": 10,
-    "prev_page_url": null,
-    "to": 1,
-    "total": 1
-  }
+  "data": [
+    {
+      "id": 1,
+      "email": "john.doe@example.com",
+      "name": "John Doe",
+      "subscribed_at": "2025-09-23T10:00:00.000000Z",
+      "unsubscribed_at": null,
+      "created_at": "2025-09-23T10:00:00.000000Z",
+      "updated_at": "2025-09-23T10:00:00.000000Z"
+    },
+    {
+      "id": 2,
+      "email": "jane.smith@example.com",
+      "name": "Jane Smith",
+      "subscribed_at": "2025-09-23T09:00:00.000000Z",
+      "unsubscribed_at": null,
+      "created_at": "2025-09-23T09:00:00.000000Z",
+      "updated_at": "2025-09-23T09:00:00.000000Z"
+    }
+  ]
 }
 ```
 
@@ -762,8 +755,8 @@ CREATE TABLE newsletter_subscriptions (
 7. **Error Handling**: Comprehensive error responses with appropriate HTTP status codes
 8. **Statistics**: Admin can view subscription statistics including monthly trends
 9. **Search**: Admin can search subscriptions by email or name
-10. **Pagination**: All list endpoints support pagination
-11. **Status Filtering**: Admin can filter subscriptions by active/inactive status based on `unsubscribed_at` field
+10. **Status Filtering**: Admin can filter subscriptions by active/inactive status based on `unsubscribed_at` field
+11. **No Pagination**: All subscriptions are returned in a single request for easier management
 
 ---
 

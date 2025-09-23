@@ -19,12 +19,9 @@ class NewsletterSubscriptionController extends Controller
     {
         $request->validate([
             'status' => 'nullable|in:active,inactive,all',
-            'per_page' => 'nullable|integer|min:1|max:100',
-            'page' => 'nullable|integer|min:1',
             'search' => 'nullable|string|min:1'
         ]);
 
-        $perPage = $request->input('per_page', 20);
         $status = $request->input('status', 'all');
         $search = $request->input('search');
 
@@ -52,7 +49,7 @@ class NewsletterSubscriptionController extends Controller
         // Order by latest first
         $query->orderBy('created_at', 'desc');
 
-        $subscriptions = $query->paginate($perPage);
+        $subscriptions = $query->get();
 
         return response()->json([
             'success' => true,
