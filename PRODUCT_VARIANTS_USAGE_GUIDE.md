@@ -32,6 +32,7 @@ products (1) ──→ (many) product_variants (1) ──→ (many) product_imag
   "variants": [
     {
       "color": "Red",
+      "color_image": "red_swatch.jpg",
       "images": [
         "red_front.jpg",
         "red_back.jpg",
@@ -40,6 +41,7 @@ products (1) ──→ (many) product_variants (1) ──→ (many) product_imag
     },
     {
       "color": "Blue",
+      "color_image": "blue_swatch.jpg",
       "images": [
         "blue_front.jpg",
         "blue_back.jpg",
@@ -48,6 +50,7 @@ products (1) ──→ (many) product_variants (1) ──→ (many) product_imag
     },
     {
       "color": "Green",
+      "color_image": "green_swatch.jpg",
       "images": [
         "green_front.jpg",
         "green_back.jpg"
@@ -75,6 +78,8 @@ Response:
       {
         "id": 1,
         "color": "Red",
+        "color_image": "color-swatches/red_swatch.jpg",
+        "color_image_url": "http://localhost/storage/color-swatches/red_swatch.jpg",
         "images": [
           {
             "id": 1,
@@ -91,6 +96,8 @@ Response:
       {
         "id": 2,
         "color": "Blue",
+        "color_image": "color-swatches/blue_swatch.jpg",
+        "color_image_url": "http://localhost/storage/color-swatches/blue_swatch.jpg",
         "images": [
           {
             "id": 3,
@@ -111,6 +118,7 @@ Response:
 ```json
 {
   "color": "Black",
+  "color_image": "black_swatch.jpg",
   "images": [
     "black_front.jpg",
     "black_back.jpg"
@@ -125,6 +133,7 @@ Response:
 ```json
 {
   "color": "Dark Red",
+  "color_image": "dark_red_swatch.jpg",
   "images": [
     "dark_red_front.jpg",
     "dark_red_back.jpg"
@@ -153,6 +162,83 @@ Response:
 
 **DELETE** `/api/variants/{variant_id}`
 
+## Real-World Example: Lipstick with Color Numbers
+
+Here's how to create a lipstick product with color numbers and swatch images:
+
+### Create Lipstick Product with Color Variants
+
+**POST** `/api/products`
+
+```json
+{
+  "name": "Matte Lipstick Collection",
+  "desc": "Long-lasting matte lipstick with rich pigmentation",
+  "category_id": 5,
+  "brand_id": 2,
+  "buying_price": 8.00,
+  "regular_price": 24.00,
+  "discount": 0,
+  "quantity": 50,
+  "variants": [
+    {
+      "color": "050 - Classic Red",
+      "color_image": "lipstick_050_swatch.jpg",
+      "images": [
+        "lipstick_050_packaging.jpg",
+        "lipstick_050_swatch_hand.jpg",
+        "lipstick_050_application.jpg"
+      ]
+    },
+    {
+      "color": "120 - Nude Pink",
+      "color_image": "lipstick_120_swatch.jpg",
+      "images": [
+        "lipstick_120_packaging.jpg",
+        "lipstick_120_swatch_hand.jpg",
+        "lipstick_120_application.jpg"
+      ]
+    },
+    {
+      "color": "200 - Deep Berry",
+      "color_image": "lipstick_200_swatch.jpg",
+      "images": [
+        "lipstick_200_packaging.jpg",
+        "lipstick_200_swatch_hand.jpg",
+        "lipstick_200_application.jpg"
+      ]
+    }
+  ]
+}
+```
+
+### Response Structure
+
+```json
+{
+  "success": true,
+  "product": {
+    "id": 15,
+    "name": "Matte Lipstick Collection",
+    "variants": [
+      {
+        "id": 45,
+        "color": "050 - Classic Red",
+        "color_image": "color-swatches/lipstick_050_swatch.jpg",
+        "color_image_url": "http://localhost/storage/color-swatches/lipstick_050_swatch.jpg",
+        "images": [
+          {
+            "id": 89,
+            "path": "products/lipstick_050_packaging.jpg",
+            "url": "http://localhost/storage/products/lipstick_050_packaging.jpg"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
 ## Frontend Implementation Examples
 
 ### React/JavaScript Example
@@ -175,6 +261,11 @@ const createProductWithVariants = async (productData) => {
   // Add variants
   productData.variants.forEach((variant, variantIndex) => {
     formData.append(`variants[${variantIndex}][color]`, variant.color);
+    
+    // Add color image if provided
+    if (variant.color_image) {
+      formData.append(`variants[${variantIndex}][color_image]`, variant.color_image);
+    }
     
     variant.images.forEach((image, imageIndex) => {
       formData.append(`variants[${variantIndex}][images][${imageIndex}]`, image);
@@ -203,6 +294,11 @@ const addVariant = async (productId, variantData) => {
   const formData = new FormData();
   formData.append('color', variantData.color);
   
+  // Add color image if provided
+  if (variantData.color_image) {
+    formData.append('color_image', variantData.color_image);
+  }
+  
   variantData.images.forEach((image, index) => {
     formData.append(`images[${index}]`, image);
   });
@@ -225,7 +321,15 @@ const addVariant = async (productId, variantData) => {
 <template>
   <div class="product-variants">
     <div v-for="variant in product.variants" :key="variant.id" class="variant">
-      <h3>{{ variant.color }}</h3>
+      <div class="variant-header">
+        <h3>{{ variant.color }}</h3>
+        <img 
+          v-if="variant.color_image_url"
+          :src="variant.color_image_url" 
+          :alt="`${variant.color} swatch`"
+          class="color-swatch"
+        />
+      </div>
       <div class="variant-images">
         <img 
           v-for="image in variant.images" 
@@ -261,6 +365,11 @@ export default {
     async addVariant(variantData) {
       const formData = new FormData();
       formData.append('color', variantData.color);
+      
+      // Add color image if provided
+      if (variantData.color_image) {
+        formData.append('color_image', variantData.color_image);
+      }
       
       variantData.images.forEach((image, index) => {
         formData.append(`images[${index}]`, image);

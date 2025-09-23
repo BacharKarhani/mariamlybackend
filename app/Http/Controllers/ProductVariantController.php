@@ -43,13 +43,21 @@ class ProductVariantController extends Controller
     {
         $request->validate([
             'color' => 'required|string|max:50',
+            'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'images' => 'required|array|min:1',
             'images.*' => 'required|image|max:2048',
         ]);
 
-        $variant = $product->variants()->create([
+        $variantData = [
             'color' => $request->color
-        ]);
+        ];
+
+        // Handle hex color if provided
+        if ($request->has('hex_color')) {
+            $variantData['hex_color'] = $request->hex_color;
+        }
+
+        $variant = $product->variants()->create($variantData);
 
         // Store images for this variant
         foreach ($request->file('images') as $image) {
@@ -71,13 +79,21 @@ class ProductVariantController extends Controller
     {
         $request->validate([
             'color' => 'required|string|max:50',
+            'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'images' => 'sometimes|array|min:1',
             'images.*' => 'sometimes|image|max:2048',
         ]);
 
-        $variant->update([
+        $updateData = [
             'color' => $request->color
-        ]);
+        ];
+
+        // Handle hex color update if provided
+        if ($request->has('hex_color')) {
+            $updateData['hex_color'] = $request->hex_color;
+        }
+
+        $variant->update($updateData);
 
         // Update images if provided
         if ($request->hasFile('images')) {

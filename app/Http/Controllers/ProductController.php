@@ -129,6 +129,7 @@ public function index(Request $request)
             'new_until'     => 'nullable|date',
             'variants'      => 'required|array|min:1',
             'variants.*.color' => 'required|string|max:50',
+            'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'variants.*.images' => 'required|array|min:1',
             'variants.*.images.*' => 'required|image|max:2048',
         ]);
@@ -157,9 +158,16 @@ public function index(Request $request)
 
         // Create variants with their images
         foreach ($request->variants as $variantData) {
-            $variant = $product->variants()->create([
+            $variantDataArray = [
                 'color' => $variantData['color']
-            ]);
+            ];
+
+            // Handle hex color if provided
+            if (isset($variantData['hex_color'])) {
+                $variantDataArray['hex_color'] = $variantData['hex_color'];
+            }
+
+            $variant = $product->variants()->create($variantDataArray);
 
             // Store images for this variant
             foreach ($variantData['images'] as $image) {
