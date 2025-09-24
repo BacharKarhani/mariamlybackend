@@ -77,21 +77,26 @@ $orderFresh = Order::with(['user', 'address.zone', 'orderProducts.product', 'ord
             // =============================
             try {
                 if (!empty($orderFresh->user?->email)) {
+                    Log::info('Sending user email for order #'.$orderFresh->order_id);
                     Mail::to($orderFresh->user->email)
                         ->send(new OrderPlacedUser($orderFresh));
+                    Log::info('User email sent successfully for order #'.$orderFresh->order_id);
                 } else {
                     Log::warning('User email missing for order #'.$orderFresh->order_id);
                 }
 
-                $adminEmail = env('ADMIN_EMAIL');
+                $adminEmail = 'info@mariamly.com'; 
                 if ($adminEmail) {
+                    Log::info('Sending admin email for order #'.$orderFresh->order_id.' to '.$adminEmail);
                     Mail::to($adminEmail)->send(new OrderPlacedAdmin($orderFresh));
+                    Log::info('Admin email sent successfully for order #'.$orderFresh->order_id);
                 } else {
                     Log::warning('ADMIN_EMAIL not set; admin email skipped for order #'.$orderFresh->order_id);
                 }
             } catch (\Throwable $mailEx) {
                 Log::error('Order emails failed: ' . $mailEx->getMessage(), [
-                    'order_id' => $order->order_id
+                    'order_id' => $order->order_id,
+                    'trace' => $mailEx->getTraceAsString()
                 ]);
             }
 
