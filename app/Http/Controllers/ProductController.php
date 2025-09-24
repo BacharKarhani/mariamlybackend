@@ -131,10 +131,10 @@ public function index(Request $request)
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
             'variants'      => 'nullable|array',
-            'variants.*.color' => 'required|string|max:50',
+            'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'variants.*.images' => 'required|array|min:1',
-            'variants.*.images.*' => 'required|image|max:2048',
+            'variants.*.images' => 'required_with:variants|array|min:1',
+            'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
 
         // Brand and category are now independent - no restriction needed
@@ -210,6 +210,11 @@ public function index(Request $request)
             'images.*'      => 'nullable|image|max:2048',
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
+            'variants'      => 'nullable|array',
+            'variants.*.color' => 'required_with:variants|string|max:50',
+            'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'variants.*.images' => 'required_with:variants|array|min:1',
+            'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
 
         // Brand and category are now independent - no restriction needed
@@ -236,6 +241,38 @@ public function index(Request $request)
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
         ]);
+
+        // Update variants if provided
+        if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
+            // Delete existing variants and their images
+            foreach ($product->variants as $variant) {
+                foreach ($variant->images as $image) {
+                    Storage::disk('public')->delete($image->path);
+                    $image->delete();
+                }
+                $variant->delete();
+            }
+
+            // Create new variants
+            foreach ($request->variants as $variantData) {
+                $variantDataArray = [
+                    'color' => $variantData['color']
+                ];
+
+                // Handle hex color if provided
+                if (isset($variantData['hex_color'])) {
+                    $variantDataArray['hex_color'] = $variantData['hex_color'];
+                }
+
+                $variant = $product->variants()->create($variantDataArray);
+
+                // Store images for this variant
+                foreach ($variantData['images'] as $image) {
+                    $path = $image->store('products', 'public');
+                    $variant->images()->create(['path' => $path]);
+                }
+            }
+        }
 
         // Note: Images are now handled through variants, not directly on products
         // If you need to add images to a product, you should add them to specific variants
