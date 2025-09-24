@@ -21,6 +21,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactInfoController;
 use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\OfferController;
+use App\Http\Controllers\ReviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,6 +79,10 @@ Route::post('/newsletter/unsubscribe', [NewsletterSubscriptionController::class,
 // Offer (Public - Get only)
 Route::get('/offer', [OfferController::class, 'get']);
 
+// Reviews (Public - Get approved reviews only)
+Route::get('/reviews', [ReviewController::class, 'index']);
+Route::get('/products/{product}/reviews', [ReviewController::class, 'index'])->whereNumber('product');
+
 /*
 |--------------------------------------------------------------------------
 | Whish Payment (Open Routes)
@@ -127,6 +132,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders (self)
     Route::get('/orders/my', [OrderController::class, 'myOrders']);
+
+    // Reviews (User can submit reviews)
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::get('/reviews/{review}', [ReviewController::class, 'show'])->whereNumber('review');
 });
 
 /*
@@ -208,4 +217,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/admin/offer', [OfferController::class, 'show']);
     Route::post('/admin/offer', [OfferController::class, 'store']);
     Route::delete('/admin/offer', [OfferController::class, 'destroy']);
+
+    // Reviews Management (Admin Only)
+    Route::get('/admin/reviews', [ReviewController::class, 'adminIndex']);
+    Route::get('/admin/products/{product}/reviews', [ReviewController::class, 'adminIndex'])->whereNumber('product');
+    Route::put('/admin/reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review');
+    Route::delete('/admin/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
+
 });

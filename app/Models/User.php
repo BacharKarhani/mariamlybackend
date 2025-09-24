@@ -60,4 +60,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(RecentlyViewed::class, 'user_id', 'id');
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function getNameAttribute()
+    {
+        return $this->fname . ' ' . $this->lname;
+    }
 }

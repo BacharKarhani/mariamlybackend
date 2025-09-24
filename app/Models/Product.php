@@ -119,4 +119,14 @@ class Product extends Model
     {
         return $this->hasMany(RecentlyViewed::class, 'product_id', 'id');
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function approvedReviews()
+    {
+        return $this->hasMany(Review::class)->where('status', true);
+    }
 }
