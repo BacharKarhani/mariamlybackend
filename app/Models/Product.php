@@ -98,10 +98,14 @@ class Product extends Model
         return $this->belongsTo(Brand::class);
     }
 
+    // Note: Images are now handled through variants, not directly on products
+    // Use $product->variants->pluck('images')->flatten() to get all images
+    /*
     public function images()
     {
         return $this->hasMany(ProductImage::class);
     }
+    */
 
     public function variants()
     {

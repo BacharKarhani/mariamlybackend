@@ -223,17 +223,22 @@ public function index(Request $request)
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
         ]);
 
+        // Note: Images are now handled through variants, not directly on products
+        // If you need to add images to a product, you should add them to specific variants
+        // This section is commented out to prevent the database error
+        /*
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
                 $product->images()->create(['path' => $path]);
             }
         }
+        */
 
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'product' => $product->load('images','category','subcategory','brand')
+            'product' => $product->load('variants.images','category','subcategory','brand')
         ]);
     }
 
