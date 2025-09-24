@@ -21,7 +21,7 @@ class CheckoutController extends Controller
         ]);
 
         $user = $request->user();
-        $cartItems = $user->cart()->with('product')->get();
+        $cartItems = $user->cart()->with(['product', 'variant'])->get();
 
         if ($cartItems->isEmpty()) {
             return response()->json([
@@ -52,6 +52,7 @@ class CheckoutController extends Controller
                 OrderProduct::create([
                     'order_id'   => $order->order_id, // primary key عندك
                     'product_id' => $item->product_id,
+                    'variant_id' => $item->variant_id,
                     'price'      => $item->product->selling_price,
                     'quantity'   => $item->quantity,
                     'total'      => $item->product->selling_price * $item->quantity,
@@ -67,7 +68,7 @@ class CheckoutController extends Controller
             DB::commit();
 
             // حمّل العلاقات الصحيحة للإيميل
-$orderFresh = Order::with(['user', 'address.zone', 'orderProducts.product'])
+$orderFresh = Order::with(['user', 'address.zone', 'orderProducts.product', 'orderProducts.variant'])
                 ->where('order_id', $order->order_id)
                 ->first();
 

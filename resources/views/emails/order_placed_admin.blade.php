@@ -60,7 +60,12 @@
       <tbody>
         @foreach($order->orderProducts as $line)
           <tr>
-            <td>{{ $line->product->name ?? ('#'.$line->product_id) }}</td>
+            <td>
+              {{ $line->product->name ?? ('#'.$line->product_id) }}
+              @if($line->variant)
+                <br><small style="color: #666;">Color: {{ $line->variant->color }}</small>
+              @endif
+            </td>
             <td align="right">{{ $line->quantity }}</td>
             <td align="right">${{ number_format((float) $line->price, 2) }}</td>
             <td align="right">${{ number_format((float) $line->total, 2) }}</td>

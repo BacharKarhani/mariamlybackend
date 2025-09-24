@@ -53,7 +53,7 @@ class OrderController extends Controller
     // Get single order by ID
     public function show($order_id)
     {
-        $order = Order::with('user', 'address')->find($order_id);
+        $order = Order::with(['user', 'address', 'orderProducts.product', 'orderProducts.variant'])->find($order_id);
 
         if (! $order) {
             return response()->json([
@@ -101,7 +101,7 @@ class OrderController extends Controller
     // Admin: Get order profit calculation
     public function getOrderProfit($order_id)
     {
-        $order = Order::with('orderProducts.product')->find($order_id);
+        $order = Order::with(['orderProducts.product', 'orderProducts.variant'])->find($order_id);
 
         if (! $order) {
             return response()->json([
@@ -133,7 +133,7 @@ public function myOrders(Request $request)
 {
     $user = $request->user();
 
-    $query = Order::with('address', 'orderProducts.product')
+    $query = Order::with(['address', 'orderProducts.product', 'orderProducts.variant'])
         ->where('user_id', $user->id);
 
     // Optional status filter

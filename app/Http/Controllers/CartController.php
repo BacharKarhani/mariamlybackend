@@ -9,7 +9,7 @@ class CartController extends Controller
 {
     public function index(Request $request)
     {
-        $items = $request->user()->cart()->with('product')->get();
+        $items = $request->user()->cart()->with(['product', 'variant'])->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
             $items->each(function ($item) {
@@ -37,17 +37,33 @@ class CartController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'variant_id' => 'nullable|exists:product_variants,id',
         ]);
+
+        // Validate that variant belongs to the product if provided
+        if ($request->variant_id) {
+            $variant = \App\Models\ProductVariant::where('id', $request->variant_id)
+                ->where('product_id', $request->product_id)
+                ->first();
+            
+            if (!$variant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected variant does not belong to this product'
+                ], 400);
+            }
+        }
 
         $cartItem = Cart::updateOrCreate(
             [
                 'user_id' => $request->user()->id,
                 'product_id' => $request->product_id,
+                'variant_id' => $request->variant_id,
             ],
             ['quantity' => $request->quantity]
         );
 
-        $cartItem->load('product');
+        $cartItem->load(['product', 'variant']);
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
             $cartItem->product->makeHidden('buying_price');
@@ -64,10 +80,12 @@ class CartController extends Controller
     {
         $request->validate([
             'quantity' => 'required|integer|min:1',
+            'variant_id' => 'nullable|exists:product_variants,id',
         ]);
 
         $cart = Cart::where('user_id', $request->user()->id)
             ->where('product_id', $product_id)
+            ->where('variant_id', $request->variant_id)
             ->first();
 
         if (! $cart) {
@@ -85,8 +103,13 @@ class CartController extends Controller
 
     public function destroy(Request $request, $product_id)
     {
+        $request->validate([
+            'variant_id' => 'nullable|exists:product_variants,id',
+        ]);
+
         $cart = Cart::where('user_id', $request->user()->id)
             ->where('product_id', $product_id)
+            ->where('variant_id', $request->variant_id)
             ->first();
 
         if (! $cart) {
