@@ -20,6 +20,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactInfoController;
 use App\Http\Controllers\NewsletterSubscriptionController;
+use App\Http\Controllers\OfferController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,6 +74,9 @@ Route::get('/products/discounted', [ProductController::class, 'discounted']);
 // Newsletter Subscription (Public)
 Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store']);
 Route::post('/newsletter/unsubscribe', [NewsletterSubscriptionController::class, 'unsubscribe']);
+
+// Offer (Public - Get only)
+Route::get('/offer', [OfferController::class, 'get']);
 
 /*
 |--------------------------------------------------------------------------
@@ -199,4 +203,9 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::put('/newsletter-subscriptions/{id}', [NewsletterSubscriptionController::class, 'update']);
     Route::delete('/newsletter-subscriptions/{id}', [NewsletterSubscriptionController::class, 'destroy']);
     Route::get('/newsletter-subscriptions/stats/overview', [NewsletterSubscriptionController::class, 'stats']);
+
+    // Offer Management (Admin Only)
+    Route::get('/admin/offer', [OfferController::class, 'show']);
+    Route::post('/admin/offer', [OfferController::class, 'store']);
+    Route::delete('/admin/offer', [OfferController::class, 'destroy']);
 });
