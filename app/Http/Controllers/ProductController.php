@@ -130,7 +130,7 @@ public function index(Request $request)
             'is_trending'   => 'sometimes|boolean',
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
-            'variants'      => 'required|array|min:1',
+            'variants'      => 'nullable|array',
             'variants.*.color' => 'required|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'variants.*.images' => 'required|array|min:1',
@@ -154,28 +154,33 @@ public function index(Request $request)
             'discount'      => $discount,
             'selling_price' => $sellingPrice,
             'quantity'      => $request->quantity,
+            'weight'        => $request->weight,
+            'ingredients'   => $request->ingredients,
+            'usage_instructions' => $request->usage_instructions,
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : false,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : false,
             'new_until'     => $request->new_until,
         ]);
 
-        // Create variants with their images
-        foreach ($request->variants as $variantData) {
-            $variantDataArray = [
-                'color' => $variantData['color']
-            ];
+        // Create variants with their images (only if provided)
+        if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
+            foreach ($request->variants as $variantData) {
+                $variantDataArray = [
+                    'color' => $variantData['color']
+                ];
 
-            // Handle hex color if provided
-            if (isset($variantData['hex_color'])) {
-                $variantDataArray['hex_color'] = $variantData['hex_color'];
-            }
+                // Handle hex color if provided
+                if (isset($variantData['hex_color'])) {
+                    $variantDataArray['hex_color'] = $variantData['hex_color'];
+                }
 
-            $variant = $product->variants()->create($variantDataArray);
+                $variant = $product->variants()->create($variantDataArray);
 
-            // Store images for this variant
-            foreach ($variantData['images'] as $image) {
-                $path = $image->store('products', 'public');
-                $variant->images()->create(['path' => $path]);
+                // Store images for this variant
+                foreach ($variantData['images'] as $image) {
+                    $path = $image->store('products', 'public');
+                    $variant->images()->create(['path' => $path]);
+                }
             }
         }
 
@@ -224,6 +229,9 @@ public function index(Request $request)
             'discount'      => $discount,
             'selling_price' => $sellingPrice,
             'quantity'      => $request->quantity,
+            'weight'        => $request->weight,
+            'ingredients'   => $request->ingredients,
+            'usage_instructions' => $request->usage_instructions,
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : $product->is_trending,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
