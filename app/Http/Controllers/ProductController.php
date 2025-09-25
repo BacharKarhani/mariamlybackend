@@ -32,9 +32,9 @@ class ProductController extends Controller
 
         $perPage = (int) $request->input('per_page', 12);
 
-        $query = Product::with(['category','subcategory','brand','variants.images'])
+        $query = Product::with(['categories','subcategory','brand','variants.images'])
             ->when($request->filled('category_id'),
-                fn($q) => $q->where('category_id', $request->integer('category_id')))
+                fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
             ->when($request->filled('subcategory_id'),
                 fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
             ->when($request->filled('brand_id'),
@@ -87,7 +87,7 @@ class ProductController extends Controller
 
     public function show(Request $request, Product $product)
     {
-        $product->load(['category','subcategory','brand','variants.images']);
+        $product->load(['categories','subcategory','brand','variants.images']);
 
         // Hide buying price from non-admins or guests
         $user = auth('sanctum')->user();
@@ -116,7 +116,8 @@ class ProductController extends Controller
             'name'          => 'required|string',
             'sku'           => 'nullable|string|unique:products,sku',
             'desc'          => 'nullable|string',
-            'category_id'   => 'required|exists:categories,id',
+            'category_ids'  => 'required|array|min:1',
+            'category_ids.*' => 'integer|exists:categories,id',
             'subcategory_id' => 'nullable|exists:subcategories,id',
             'brand_id'      => 'required|exists:brands,id',
             'buying_price'  => 'required|numeric|min:0',
@@ -147,7 +148,6 @@ class ProductController extends Controller
             'name'          => $request->name,
             'sku'           => $request->sku,
             'desc'          => $request->desc,
-            'category_id'   => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
             'brand_id'      => $request->brand_id,
             'buying_price'  => $request->buying_price,
@@ -162,6 +162,9 @@ class ProductController extends Controller
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : false,
             'new_until'     => $request->new_until,
         ]);
+
+        // Attach categories to the product
+        $product->categories()->attach($request->category_ids);
 
         // Option 1: Handle explicit variants upload
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
@@ -200,7 +203,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'product' => $product->load('variants.images','category','subcategory','brand')
+            'product' => $product->load('variants.images','categories','subcategory','brand')
         ], 201);
     }
 
@@ -210,7 +213,8 @@ class ProductController extends Controller
             'name'          => 'required|string',
             'sku'           => 'nullable|string|unique:products,sku,' . $product->id,
             'desc'          => 'nullable|string',
-            'category_id'   => 'required|exists:categories,id',
+            'category_ids'  => 'required|array|min:1',
+            'category_ids.*' => 'integer|exists:categories,id',
             'subcategory_id' => 'nullable|exists:subcategories,id',
             'brand_id'      => 'required|exists:brands,id',
             'buying_price'  => 'required|numeric|min:0',
@@ -241,7 +245,6 @@ class ProductController extends Controller
             'name'          => $request->name,
             'sku'           => $request->sku,
             'desc'          => $request->desc,
-            'category_id'   => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
             'brand_id'      => $request->brand_id,
             'buying_price'  => $request->buying_price,
@@ -256,6 +259,9 @@ class ProductController extends Controller
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
         ]);
+
+        // Sync categories (this will detach old ones and attach new ones)
+        $product->categories()->sync($request->category_ids);
 
         // Option 1: Update/Replace variants if explicitly provided
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
@@ -310,7 +316,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'product' => $product->load('variants.images','category','subcategory','brand')
+            'product' => $product->load('variants.images','categories','subcategory','brand')
         ]);
     }
     
@@ -336,9 +342,11 @@ class ProductController extends Controller
 
     public function related(Product $product)
     {
-        $related = Product::where('category_id', $product->category_id)
+        $related = Product::whereHas('categories', function($q) use ($product) {
+                $q->whereIn('categories.id', $product->categories->pluck('id'));
+            })
             ->where('id', '!=', $product->id)
-            ->with(['category','brand','variants.images'])
+            ->with(['categories','brand','variants.images'])
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
@@ -354,7 +362,7 @@ class ProductController extends Controller
     // Get all trending products
     public function trending()
     {
-        $products = Product::with(['category','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants.images'])
             ->where('is_trending', true)
             ->get();
 
@@ -371,7 +379,7 @@ class ProductController extends Controller
     // NEW: قائمة المنتجات الجديدة (فعّالة بحسب is_new/new_until)
     public function newProducts()
     {
-        $products = Product::with(['category','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants.images'])
             ->newActive()
             ->get();
 
@@ -401,7 +409,7 @@ class ProductController extends Controller
             ->limit(10)
             ->pluck('product_id');
 
-        $products = Product::with(['category','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants.images'])
             ->whereIn('id', $productIds)
             ->get();
 
@@ -436,14 +444,14 @@ class ProductController extends Controller
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['category','brand','variants.images'])
+    $query = Product::with(['categories','brand','variants.images'])
         ->when($request->filled('q'), function ($qq) use ($request) {
             $q = $request->input('q');
             $qq->where('name', 'like', "%{$q}%");
             // إذا بدك تضيف الوصف كمان:
             // $qq->orWhere('desc', 'like', "%{$q}%");
         })
-        ->when($request->filled('category_id'), fn($qq) => $qq->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('category_id'), fn($qq) => $qq->whereHas('categories', fn($qqq) => $qqq->where('categories.id', $request->integer('category_id'))))
         ->when($request->filled('brand_id'), fn($qq) => $qq->where('brand_id', $request->integer('brand_id')))
         ->orderByDesc('id');
 
@@ -480,12 +488,12 @@ public function discounted(Request $request)
     $perPage     = (int) $request->input('per_page', 12);
     $minDiscount = (float) $request->input('min_discount', 0);
 
-    $query = Product::with(['category','brand','variants.images'])
+    $query = Product::with(['categories','brand','variants.images'])
         ->where('discount', '>', $minDiscount)
         // (اختياري) نتأكد إنّ السعر المبيع أقل من العادي فعلاً
         ->whereColumn('selling_price', '<', 'regular_price')
         ->when($request->filled('category_id'),
-            fn($q) => $q->where('category_id', $request->integer('category_id')))
+            fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
         ->when($request->filled('brand_id'),
             fn($q) => $q->where('brand_id', $request->integer('brand_id')))
         ->when($request->filled('search'), function ($q) use ($request) {
@@ -567,9 +575,9 @@ public function indexAdmin(Request $request)
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['category','subcategory','brand','variants.images'])
+    $query = Product::with(['categories','subcategory','brand','variants.images'])
         ->when($request->filled('category_id'),
-            fn($q) => $q->where('category_id', $request->integer('category_id')))
+            fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
         ->when($request->filled('subcategory_id'),
             fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
         ->when($request->filled('brand_id'),
@@ -647,7 +655,7 @@ public function adminSearch(Request $request)
     $perPage = (int) $request->input('per_page', 20);
 
     // Start query
-    $query = Product::with(['category','brand','variants.images']);
+    $query = Product::with(['categories','brand','variants.images']);
 
     // If you use SoftDeletes and want to include trashed records
     if ($request->boolean('include_deleted') && in_array('Illuminate\\Database\\Eloquent\\SoftDeletes', class_uses(Product::class))) {
@@ -658,7 +666,7 @@ public function adminSearch(Request $request)
     $query
         ->when($request->filled('id'), fn($q) => $q->where('id', $request->integer('id')))
         ->when($request->filled('q'), fn($q) => $q->where('name', 'like', '%'.$request->input('q').'%'))
-        ->when($request->filled('category_id'), fn($q) => $q->where('category_id', $request->integer('category_id')))
+        ->when($request->filled('category_id'), fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
         ->when($request->filled('brand_id'), fn($q) => $q->where('brand_id', $request->integer('brand_id')));
 
     // Sorting

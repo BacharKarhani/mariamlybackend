@@ -15,7 +15,6 @@ class Product extends Model
         'sku',
         'desc',
         'image',        // legacy single-image column (optional)
-        'category_id',
         'subcategory_id',
         'brand_id',
         'buying_price',
@@ -35,7 +34,6 @@ class Product extends Model
         'is_trending' => 'boolean',
         'is_new'      => 'boolean',
         'new_until'   => 'datetime',
-        'category_id' => 'integer',
         'subcategory_id' => 'integer',
         'brand_id'    => 'integer',
     ];
@@ -70,8 +68,8 @@ class Product extends Model
             // if Brand has its own image_url accessor, that will already be present
             return $this->brand->image_url ?? url(Storage::url($this->brand->image));
         }
-        if ($this->category && !empty($this->category->image)) {
-            return $this->category->image_url ?? url(Storage::url($this->category->image));
+        if ($this->categories->isNotEmpty() && !empty($this->categories->first()->image)) {
+            return $this->categories->first()->image_url ?? url(Storage::url($this->categories->first()->image));
         }
 
         return null;
@@ -87,9 +85,9 @@ class Product extends Model
             });
     }
 
-    public function category()
+    public function categories()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Category::class, 'product_categories');
     }
 
     public function subcategory()
