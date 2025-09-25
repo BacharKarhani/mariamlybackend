@@ -13,79 +13,77 @@ use Illuminate\Support\Facades\Storage;
 class ProductController extends Controller
 {
     // Public: list all products
-// App\Http\Controllers\ProductController.php
+    public function index(Request $request)
+    {
+        // validate incoming filters
+        $request->validate([
+            'search'        => 'nullable|string|min:1',
+            'category_id'   => 'nullable|integer|exists:categories,id',
+            'subcategory_id' => 'nullable|integer|exists:subcategories,id',
+            'brand_id'      => 'nullable|integer|exists:brands,id',
+            'min_price'     => 'nullable|numeric|min:0',
+            'max_price'     => 'nullable|numeric|min:0',
+            'sort'          => 'nullable|in:low_to_high,high_to_low',
+            'per_page'      => 'nullable|integer|min:1|max:100',
+            'page'          => 'nullable|integer|min:1',
+            'is_trending'   => 'nullable|boolean',
+            'is_new'        => 'nullable|boolean',
+        ]);
 
-public function index(Request $request)
-{
-    // validate incoming filters
-    $request->validate([
-        'search'      => 'nullable|string|min:1',
-        'category_id' => 'nullable|integer|exists:categories,id',
-        'subcategory_id' => 'nullable|integer|exists:subcategories,id',
-        'brand_id'    => 'nullable|integer|exists:brands,id',
-        'min_price'   => 'nullable|numeric|min:0',
-        'max_price'   => 'nullable|numeric|min:0',
-        'sort'        => 'nullable|in:low_to_high,high_to_low',
-        'per_page'    => 'nullable|integer|min:1|max:100',
-        'page'        => 'nullable|integer|min:1',
-        'is_trending' => 'nullable|boolean',
-        'is_new'      => 'nullable|boolean',
-    ]);
+        $perPage = (int) $request->input('per_page', 12);
 
-    $perPage = (int) $request->input('per_page', 12);
+        $query = Product::with(['category','subcategory','brand','variants.images'])
+            ->when($request->filled('category_id'),
+                fn($q) => $q->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('subcategory_id'),
+                fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
+            ->when($request->filled('brand_id'),
+                fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+            ->when($request->filled('is_trending'),
+                fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
+            ->when($request->filled('is_new'),
+                fn($q) => $q->where('is_new', $request->boolean('is_new')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $s = trim($request->input('search'));
+                $q->where(function ($qq) use ($s) {
+                    $qq->where('name', 'like', "%{$s}%")
+                        ->orWhere('desc', 'like', "%{$s}%");
+                });
+            })
+            // price filters on selling_price (the price you display to users)
+            ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
+                $min = (float) $request->input('min_price');
+                $max = (float) $request->input('max_price');
+                if ($min > $max) { [$min, $max] = [$max, $min]; }
+                $q->whereBetween('selling_price', [$min, $max]);
+            })
+            ->when($request->filled('min_price') && ! $request->filled('max_price'),
+                fn($q) => $q->where('selling_price', '>=', (float) $request->input('min_price')))
+            ->when(! $request->filled('min_price') && $request->filled('max_price'),
+                fn($q) => $q->where('selling_price', '<=', (float) $request->input('max_price')));
 
-    $query = Product::with(['category','subcategory','brand','variants.images'])
-        ->when($request->filled('category_id'),
-            fn($q) => $q->where('category_id', $request->integer('category_id')))
-        ->when($request->filled('subcategory_id'),
-            fn($q) => $q->where('subcategory_id', $request->integer('subcategory_id')))
-        ->when($request->filled('brand_id'),
-            fn($q) => $q->where('brand_id', $request->integer('brand_id')))
-        ->when($request->filled('is_trending'),
-            fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
-        ->when($request->filled('is_new'),
-            fn($q) => $q->where('is_new', $request->boolean('is_new')))
-        ->when($request->filled('search'), function ($q) use ($request) {
-            $s = trim($request->input('search'));
-            $q->where(function ($qq) use ($s) {
-                $qq->where('name', 'like', "%{$s}%")
-                   ->orWhere('desc', 'like', "%{$s}%");
-            });
-        })
-        // price filters on selling_price (the price you display to users)
-        ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
-            $min = (float) $request->input('min_price');
-            $max = (float) $request->input('max_price');
-            if ($min > $max) { [$min, $max] = [$max, $min]; }
-            $q->whereBetween('selling_price', [$min, $max]);
-        })
-        ->when($request->filled('min_price') && ! $request->filled('max_price'),
-            fn($q) => $q->where('selling_price', '>=', (float) $request->input('min_price')))
-        ->when(! $request->filled('min_price') && $request->filled('max_price'),
-            fn($q) => $q->where('selling_price', '<=', (float) $request->input('max_price')));
+        // sorting
+        $sort = $request->input('sort', 'low_to_high');
+        $query->when(true, function ($q) use ($sort) {
+            if ($sort === 'high_to_low') {
+                $q->orderBy('selling_price', 'desc');
+            } else {
+                $q->orderBy('selling_price', 'asc');
+            }
+        });
 
-    // sorting
-    $sort = $request->input('sort', 'low_to_high');
-    $query->when(true, function ($q) use ($sort) {
-        if ($sort === 'high_to_low') {
-            $q->orderBy('selling_price', 'desc');
-        } else {
-            $q->orderBy('selling_price', 'asc');
+        // paginate (adds meta: current_page, last_page, total, etc.)
+        $products = $query->paginate($perPage)->appends($request->query());
+
+        // hide buying_price for guests/non-admins
+        $user = auth('sanctum')->user();
+        if (! $user || $user->role_id !== 1) {
+            $products->getCollection()->makeHidden('buying_price');
         }
-    });
 
-    // paginate (adds meta: current_page, last_page, total, etc.)
-    $products = $query->paginate($perPage)->appends($request->query());
-
-    // hide buying_price for guests/non-admins
-    $user = auth('sanctum')->user();
-    if (! $user || $user->role_id !== 1) {
-        $products->getCollection()->makeHidden('buying_price');
+        // Return paginator structure (your FE already handles data/last_page/total)
+        return response()->json($products);
     }
-
-    // Return paginator structure (your FE already handles data/last_page/total)
-    return response()->json($products);
-}
 
     public function show(Request $request, Product $product)
     {
@@ -130,6 +128,9 @@ public function index(Request $request)
             'is_trending'   => 'sometimes|boolean',
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
+            // NEW: allow a single top-level image
+            'image'         => 'nullable|image|max:2048', 
+            // Variant rules remain for multi-variant products
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
@@ -137,11 +138,9 @@ public function index(Request $request)
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
 
-        // Brand and category are now independent - no restriction needed
-
-        $regularPrice  = $request->regular_price;
-        $discount      = $request->discount ?? 0;
-        $sellingPrice  = $regularPrice - ($regularPrice * $discount / 100);
+        $regularPrice   = $request->regular_price;
+        $discount       = $request->discount ?? 0;
+        $sellingPrice   = $regularPrice - ($regularPrice * $discount / 100);
 
         $product = Product::create([
             'name'          => $request->name,
@@ -162,27 +161,39 @@ public function index(Request $request)
             'new_until'     => $request->new_until,
         ]);
 
-        // Create variants with their images (only if provided)
+        // Option 1: Handle explicit variants upload
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
             foreach ($request->variants as $variantData) {
                 $variantDataArray = [
-                    'color' => $variantData['color']
+                    'color' => $variantData['color'],
+                    // Handle hex color if provided
+                    'hex_color' => $variantData['hex_color'] ?? null
                 ];
-
-                // Handle hex color if provided
-                if (isset($variantData['hex_color'])) {
-                    $variantDataArray['hex_color'] = $variantData['hex_color'];
-                }
 
                 $variant = $product->variants()->create($variantDataArray);
 
                 // Store images for this variant
-                foreach ($variantData['images'] as $image) {
-                    $path = $image->store('products', 'public');
-                    $variant->images()->create(['path' => $path]);
+                if (isset($variantData['images'])) {
+                    foreach ($variantData['images'] as $image) {
+                        $path = $image->store('products', 'public');
+                        $variant->images()->create(['path' => $path]);
+                    }
                 }
             }
+        } 
+        // Option 2: Handle a single main product image for non-variant products (Creating a "Default" variant)
+        elseif ($request->hasFile('image')) {
+            // 1. Create a "Default" variant to hold the image
+            $variant = $product->variants()->create([
+                'color' => 'Default',
+                'hex_color' => '#FFFFFF', // Use a neutral default color
+            ]);
+
+            // 2. Store the single image and link it to the Default variant
+            $path = $request->file('image')->store('products', 'public');
+            $variant->images()->create(['path' => $path]);
         }
+
 
         return response()->json([
             'success' => true,
@@ -207,9 +218,11 @@ public function index(Request $request)
             'ingredients'   => 'nullable|string',
             'usage_instructions' => 'nullable|string',
             'is_trending'   => 'sometimes|boolean',
-            'images.*'      => 'nullable|image|max:2048',
+            // UPDATED: Use 'image' for single file upload
+            'image'         => 'nullable|image|max:2048', 
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
+            // Variant rules remain
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
@@ -217,11 +230,9 @@ public function index(Request $request)
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
 
-        // Brand and category are now independent - no restriction needed
-
-        $regularPrice  = $request->regular_price;
-        $discount      = $request->discount ?? 0;
-        $sellingPrice  = $regularPrice - ($regularPrice * $discount / 100);
+        $regularPrice   = $request->regular_price;
+        $discount       = $request->discount ?? 0;
+        $sellingPrice   = $regularPrice - ($regularPrice * $discount / 100);
 
         $product->update([
             'name'          => $request->name,
@@ -242,9 +253,9 @@ public function index(Request $request)
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
         ]);
 
-        // Update variants if provided
+        // Option 1: Update/Replace variants if explicitly provided
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
-            // Delete existing variants and their images
+            // Delete existing variants and their images (FULL REPLACEMENT strategy)
             foreach ($product->variants as $variant) {
                 foreach ($variant->images as $image) {
                     Storage::disk('public')->delete($image->path);
@@ -256,35 +267,41 @@ public function index(Request $request)
             // Create new variants
             foreach ($request->variants as $variantData) {
                 $variantDataArray = [
-                    'color' => $variantData['color']
+                    'color' => $variantData['color'],
+                    'hex_color' => $variantData['hex_color'] ?? null
                 ];
-
-                // Handle hex color if provided
-                if (isset($variantData['hex_color'])) {
-                    $variantDataArray['hex_color'] = $variantData['hex_color'];
-                }
 
                 $variant = $product->variants()->create($variantDataArray);
 
-                // Store images for this variant
-                foreach ($variantData['images'] as $image) {
-                    $path = $image->store('products', 'public');
-                    $variant->images()->create(['path' => $path]);
+                if (isset($variantData['images'])) {
+                    foreach ($variantData['images'] as $image) {
+                        $path = $image->store('products', 'public');
+                        $variant->images()->create(['path' => $path]);
+                    }
                 }
             }
-        }
-
-        // Note: Images are now handled through variants, not directly on products
-        // If you need to add images to a product, you should add them to specific variants
-        // This section is commented out to prevent the database error
-        /*
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                $product->images()->create(['path' => $path]);
+        } 
+        // Option 2: Update the single main product image (non-variant)
+        elseif ($request->hasFile('image')) {
+            
+            // Find or create the "Default" variant
+            $defaultVariant = $product->variants()->where('color', 'Default')->first();
+            
+            if (!$defaultVariant) {
+                // If it doesn't exist, create it (newly single-image product)
+                $defaultVariant = $product->variants()->create(['color' => 'Default', 'hex_color' => '#FFFFFF']);
             }
+            
+            // 1. Delete existing images for the Default variant
+            foreach ($defaultVariant->images as $image) {
+                Storage::disk('public')->delete($image->path);
+                $image->delete();
+            }
+
+            // 2. Store the new single image and link it
+            $path = $request->file('image')->store('products', 'public');
+            $defaultVariant->images()->create(['path' => $path]);
         }
-        */
 
         return response()->json([
             'success' => true,
@@ -292,6 +309,7 @@ public function index(Request $request)
             'product' => $product->load('variants.images','category','subcategory','brand')
         ]);
     }
+    
 
     // Admin: delete product and all related variants and images
     public function destroy(Product $product)
