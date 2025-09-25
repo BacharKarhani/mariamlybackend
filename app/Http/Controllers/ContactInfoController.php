@@ -36,6 +36,7 @@ class ContactInfoController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
             'location' => 'nullable|string|max:255',
+            'instagram' => 'nullable|string|max:255',
         ]);
 
         $contact = Contact::first();
@@ -45,12 +46,14 @@ class ContactInfoController extends Controller
                 'phone' => $request->phone,
                 'email' => $request->email,
                 'location' => $request->location,
+                'instagram' => $request->instagram,
             ]);
         } else {
             $contact->update([
                 'phone' => $request->phone,
                 'email' => $request->email,
                 'location' => $request->location,
+                'instagram' => $request->instagram,
             ]);
         }
 
