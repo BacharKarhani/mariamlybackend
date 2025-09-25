@@ -12,6 +12,7 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'sku',
         'desc',
         'image',        // legacy single-image column (optional)
         'category_id',

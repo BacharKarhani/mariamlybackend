@@ -114,6 +114,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'name'          => 'required|string',
+            'sku'           => 'required|string|unique:products,sku',
             'desc'          => 'nullable|string',
             'category_id'   => 'required|exists:categories,id',
             'subcategory_id' => 'nullable|exists:subcategories,id',
@@ -144,6 +145,7 @@ class ProductController extends Controller
 
         $product = Product::create([
             'name'          => $request->name,
+            'sku'           => $request->sku,
             'desc'          => $request->desc,
             'category_id'   => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
@@ -206,6 +208,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'name'          => 'required|string',
+            'sku'           => 'required|string|unique:products,sku,' . $product->id,
             'desc'          => 'nullable|string',
             'category_id'   => 'required|exists:categories,id',
             'subcategory_id' => 'nullable|exists:subcategories,id',
@@ -236,6 +239,7 @@ class ProductController extends Controller
 
         $product->update([
             'name'          => $request->name,
+            'sku'           => $request->sku,
             'desc'          => $request->desc,
             'category_id'   => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
