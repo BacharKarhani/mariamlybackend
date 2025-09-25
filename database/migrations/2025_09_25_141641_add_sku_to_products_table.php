@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->string('sku')->unique()->after('name');
+            $table->string('sku')->nullable()->unique()->after('name');
         });
     }
 
