@@ -14,6 +14,8 @@ class ProductVariant extends Model
         'product_id',
         'color',
         'hex_color',
+        'sku',
+        'quantity',
         'sort_order',
     ];
 
@@ -58,5 +60,37 @@ class ProductVariant extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Scope for variants with stock
+     */
+    public function scopeInStock($query)
+    {
+        return $query->where('quantity', '>', 0);
+    }
+
+    /**
+     * Scope for out of stock variants
+     */
+    public function scopeOutOfStock($query)
+    {
+        return $query->where('quantity', '<=', 0);
+    }
+
+    /**
+     * Check if variant is in stock
+     */
+    public function isInStock()
+    {
+        return $this->quantity > 0;
+    }
+
+    /**
+     * Check if variant is out of stock
+     */
+    public function isOutOfStock()
+    {
+        return $this->quantity <= 0;
     }
 }

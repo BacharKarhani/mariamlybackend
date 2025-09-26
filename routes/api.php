@@ -193,6 +193,10 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::post('/products/{product}/variants/reorder', [ProductVariantController::class, 'reorder'])->whereNumber('product');
     Route::post('/variants/{variant}/move-up', [ProductVariantController::class, 'moveUp'])->whereNumber('variant');
     Route::post('/variants/{variant}/move-down', [ProductVariantController::class, 'moveDown'])->whereNumber('variant');
+    
+    // Variant stock management routes
+    Route::get('/products/{product}/variants/in-stock', [ProductVariantController::class, 'inStock'])->whereNumber('product');
+    Route::get('/products/{product}/variants/out-of-stock', [ProductVariantController::class, 'outOfStock'])->whereNumber('product');
 
     // Orders (admin)
     Route::get('/orders', [OrderController::class, 'indexPaginated']);

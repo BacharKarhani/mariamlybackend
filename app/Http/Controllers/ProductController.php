@@ -136,6 +136,8 @@ class ProductController extends Controller
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'variants.*.sku' => 'nullable|string|max:100',
+            'variants.*.quantity' => 'nullable|integer|min:0',
             'variants.*.sort_order' => 'nullable|integer|min:0',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
@@ -173,6 +175,8 @@ class ProductController extends Controller
                 $variantDataArray = [
                     'color' => $variantData['color'],
                     'hex_color' => $variantData['hex_color'] ?? null,
+                    'sku' => $variantData['sku'] ?? null,
+                    'quantity' => $variantData['quantity'] ?? 0,
                     'sort_order' => $variantData['sort_order'] ?? $index
                 ];
 
@@ -227,6 +231,8 @@ class ProductController extends Controller
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'variants.*.sku' => 'nullable|string|max:100',
+            'variants.*.quantity' => 'nullable|integer|min:0',
             'variants.*.sort_order' => 'nullable|integer|min:0',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
@@ -274,6 +280,8 @@ class ProductController extends Controller
                 $variantDataArray = [
                     'color' => $variantData['color'],
                     'hex_color' => $variantData['hex_color'] ?? null,
+                    'sku' => $variantData['sku'] ?? null,
+                    'quantity' => $variantData['quantity'] ?? 0,
                     'sort_order' => $variantData['sort_order'] ?? $index
                 ];
 

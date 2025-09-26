@@ -44,6 +44,8 @@ class ProductVariantController extends Controller
         $request->validate([
             'color' => 'required|string|max:50',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sku' => 'nullable|string|max:100|unique:product_variants,sku',
+            'quantity' => 'nullable|integer|min:0',
             'sort_order' => 'nullable|integer|min:0',
             'images' => 'required|array|min:1',
             'images.*' => 'required|image|max:2048',
@@ -51,6 +53,8 @@ class ProductVariantController extends Controller
 
         $variantData = [
             'color' => $request->color,
+            'sku' => $request->sku,
+            'quantity' => $request->quantity ?? 0,
             'sort_order' => $request->sort_order ?? $product->variants()->max('sort_order') + 1
         ];
 
@@ -82,13 +86,17 @@ class ProductVariantController extends Controller
         $request->validate([
             'color' => 'required|string|max:50',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
+            'quantity' => 'nullable|integer|min:0',
             'sort_order' => 'nullable|integer|min:0',
             'images' => 'sometimes|array|min:1',
             'images.*' => 'sometimes|image|max:2048',
         ]);
 
         $updateData = [
-            'color' => $request->color
+            'color' => $request->color,
+            'sku' => $request->sku,
+            'quantity' => $request->quantity ?? $variant->quantity
         ];
 
         // Handle hex color update if provided
@@ -256,6 +264,33 @@ class ProductVariantController extends Controller
             'success' => true,
             'message' => 'Variant moved down successfully',
             'variant' => $variant->load('images')
+        ]);
+    }
+
+
+    /**
+     * Get variants with stock
+     */
+    public function inStock(Product $product)
+    {
+        $variants = $product->variants()->with('images')->inStock()->ordered()->get();
+
+        return response()->json([
+            'success' => true,
+            'variants' => $variants
+        ]);
+    }
+
+    /**
+     * Get out of stock variants
+     */
+    public function outOfStock(Product $product)
+    {
+        $variants = $product->variants()->with('images')->outOfStock()->ordered()->get();
+
+        return response()->json([
+            'success' => true,
+            'variants' => $variants
         ]);
     }
 }
