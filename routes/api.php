@@ -23,6 +23,7 @@ use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OfferSectionController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\PagesBannersImageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,6 +66,9 @@ Route::get('/zones', [ZoneController::class, 'index']);
 
 // Banners (public)
 Route::get('/banners', [BannerController::class, 'publicIndex']);
+
+// Pages Banners (public)
+Route::get('/pages-banners/{pageName}', [PagesBannersImageController::class, 'getByPage']);
 
 // Contact
 Route::post('/contact', [ContactController::class, 'store']);
@@ -240,5 +244,13 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/admin/products/{product}/reviews', [ReviewController::class, 'adminIndex'])->whereNumber('product');
     Route::put('/admin/reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review');
     Route::delete('/admin/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
+
+    // Pages Banners Images Management (Admin Only)
+    Route::get('/admin/pages-banners', [PagesBannersImageController::class, 'index']);
+    Route::post('/admin/pages-banners', [PagesBannersImageController::class, 'store']);
+    Route::get('/admin/pages-banners/{banner}', [PagesBannersImageController::class, 'show'])->whereNumber('banner');
+    Route::put('/admin/pages-banners/{banner}', [PagesBannersImageController::class, 'update'])->whereNumber('banner');
+    Route::delete('/admin/pages-banners/{banner}', [PagesBannersImageController::class, 'destroy'])->whereNumber('banner');
+    Route::post('/admin/pages-banners/{banner}/toggle-status', [PagesBannersImageController::class, 'toggleStatus'])->whereNumber('banner');
 
 });
