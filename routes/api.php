@@ -21,6 +21,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactInfoController;
 use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\OfferController;
+use App\Http\Controllers\OfferSectionController;
 use App\Http\Controllers\ReviewController;
 
 /*
@@ -78,6 +79,9 @@ Route::post('/newsletter/unsubscribe', [NewsletterSubscriptionController::class,
 
 // Offer (Public - Get only)
 Route::get('/offer', [OfferController::class, 'get']);
+
+// Offer Sections (Public - Get active offer sections)
+Route::get('/offer-sections', [OfferSectionController::class, 'publicIndex']);
 
 // Reviews (Public - Get approved reviews only)
 Route::get('/reviews', [ReviewController::class, 'index']);
@@ -217,6 +221,14 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/admin/offer', [OfferController::class, 'show']);
     Route::post('/admin/offer', [OfferController::class, 'store']);
     Route::delete('/admin/offer', [OfferController::class, 'destroy']);
+
+    // Offer Sections Management (Admin Only)
+    Route::get('/admin/offer-sections', [OfferSectionController::class, 'index']);
+    Route::post('/admin/offer-sections', [OfferSectionController::class, 'store']);
+    Route::get('/admin/offer-sections/{offerSection}', [OfferSectionController::class, 'show'])->whereNumber('offerSection');
+    Route::put('/admin/offer-sections/{offerSection}', [OfferSectionController::class, 'update'])->whereNumber('offerSection');
+    Route::delete('/admin/offer-sections/{offerSection}', [OfferSectionController::class, 'destroy'])->whereNumber('offerSection');
+    Route::post('/admin/offer-sections/reorder', [OfferSectionController::class, 'reorder']);
 
     // Reviews Management (Admin Only)
     Route::get('/admin/reviews', [ReviewController::class, 'adminIndex']);
