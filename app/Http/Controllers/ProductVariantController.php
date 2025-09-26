@@ -15,7 +15,7 @@ class ProductVariantController extends Controller
      */
     public function index(Product $product)
     {
-        $variants = $product->variants()->with('images')->get();
+        $variants = $product->variants()->with('images')->ordered()->get();
 
         return response()->json([
             'success' => true,
@@ -44,12 +44,14 @@ class ProductVariantController extends Controller
         $request->validate([
             'color' => 'required|string|max:50',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sort_order' => 'nullable|integer|min:0',
             'images' => 'required|array|min:1',
             'images.*' => 'required|image|max:2048',
         ]);
 
         $variantData = [
-            'color' => $request->color
+            'color' => $request->color,
+            'sort_order' => $request->sort_order ?? $product->variants()->max('sort_order') + 1
         ];
 
         // Handle hex color if provided
@@ -80,6 +82,7 @@ class ProductVariantController extends Controller
         $request->validate([
             'color' => 'required|string|max:50',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sort_order' => 'nullable|integer|min:0',
             'images' => 'sometimes|array|min:1',
             'images.*' => 'sometimes|image|max:2048',
         ]);
@@ -91,6 +94,11 @@ class ProductVariantController extends Controller
         // Handle hex color update if provided
         if ($request->has('hex_color')) {
             $updateData['hex_color'] = $request->hex_color;
+        }
+
+        // Handle sort order update if provided
+        if ($request->has('sort_order')) {
+            $updateData['sort_order'] = $request->sort_order;
         }
 
         $variant->update($updateData);
@@ -177,6 +185,77 @@ class ProductVariantController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Image removed successfully'
+        ]);
+    }
+
+    /**
+     * Reorder variants for a product
+     */
+    public function reorder(Request $request, Product $product)
+    {
+        $request->validate([
+            'variants' => 'required|array',
+            'variants.*.id' => 'required|integer|exists:product_variants,id',
+            'variants.*.sort_order' => 'required|integer|min:0',
+        ]);
+
+        foreach ($request->variants as $variantData) {
+            $variant = $product->variants()->find($variantData['id']);
+            if ($variant) {
+                $variant->update(['sort_order' => $variantData['sort_order']]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Variants reordered successfully',
+            'variants' => $product->variants()->with('images')->ordered()->get()
+        ]);
+    }
+
+    /**
+     * Move variant up in order
+     */
+    public function moveUp(ProductVariant $variant)
+    {
+        $previousVariant = $variant->product->variants()
+            ->where('sort_order', '<', $variant->sort_order)
+            ->orderBy('sort_order', 'desc')
+            ->first();
+
+        if ($previousVariant) {
+            $tempOrder = $variant->sort_order;
+            $variant->update(['sort_order' => $previousVariant->sort_order]);
+            $previousVariant->update(['sort_order' => $tempOrder]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Variant moved up successfully',
+            'variant' => $variant->load('images')
+        ]);
+    }
+
+    /**
+     * Move variant down in order
+     */
+    public function moveDown(ProductVariant $variant)
+    {
+        $nextVariant = $variant->product->variants()
+            ->where('sort_order', '>', $variant->sort_order)
+            ->orderBy('sort_order', 'asc')
+            ->first();
+
+        if ($nextVariant) {
+            $tempOrder = $variant->sort_order;
+            $variant->update(['sort_order' => $nextVariant->sort_order]);
+            $nextVariant->update(['sort_order' => $tempOrder]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Variant moved down successfully',
+            'variant' => $variant->load('images')
         ]);
     }
 }

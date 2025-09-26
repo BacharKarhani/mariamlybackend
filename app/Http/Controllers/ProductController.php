@@ -136,6 +136,7 @@ class ProductController extends Controller
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'variants.*.sort_order' => 'nullable|integer|min:0',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
@@ -168,11 +169,11 @@ class ProductController extends Controller
 
         // Handle explicit variants upload
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
-            foreach ($request->variants as $variantData) {
+            foreach ($request->variants as $index => $variantData) {
                 $variantDataArray = [
                     'color' => $variantData['color'],
-                    // Handle hex color if provided
-                    'hex_color' => $variantData['hex_color'] ?? null
+                    'hex_color' => $variantData['hex_color'] ?? null,
+                    'sort_order' => $variantData['sort_order'] ?? $index
                 ];
 
                 $variant = $product->variants()->create($variantDataArray);
@@ -226,6 +227,7 @@ class ProductController extends Controller
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'variants.*.sort_order' => 'nullable|integer|min:0',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
@@ -268,10 +270,11 @@ class ProductController extends Controller
             }
 
             // Create new variants
-            foreach ($request->variants as $variantData) {
+            foreach ($request->variants as $index => $variantData) {
                 $variantDataArray = [
                     'color' => $variantData['color'],
-                    'hex_color' => $variantData['hex_color'] ?? null
+                    'hex_color' => $variantData['hex_color'] ?? null,
+                    'sort_order' => $variantData['sort_order'] ?? $index
                 ];
 
                 $variant = $product->variants()->create($variantDataArray);

@@ -14,6 +14,7 @@ class ProductVariant extends Model
         'product_id',
         'color',
         'hex_color',
+        'sort_order',
     ];
 
     public function product()
@@ -49,5 +50,13 @@ class ProductVariant extends Model
     public function getCssColorAttribute()
     {
         return $this->hex_color ?: '#CCCCCC'; // Default gray if no color
+    }
+
+    /**
+     * Scope to order variants by sort_order
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order')->orderBy('id');
     }
 }

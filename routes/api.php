@@ -184,6 +184,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::delete('/variants/{variant}', [ProductVariantController::class, 'destroy'])->whereNumber('variant');
     Route::post('/variants/{variant}/images', [ProductVariantController::class, 'addImages'])->whereNumber('variant');
     Route::delete('/variants/{variant}/images/{image}', [ProductVariantController::class, 'removeImage'])->whereNumber('variant')->whereNumber('image');
+    
+    // Variant ordering routes
+    Route::post('/products/{product}/variants/reorder', [ProductVariantController::class, 'reorder'])->whereNumber('product');
+    Route::post('/variants/{variant}/move-up', [ProductVariantController::class, 'moveUp'])->whereNumber('variant');
+    Route::post('/variants/{variant}/move-down', [ProductVariantController::class, 'moveDown'])->whereNumber('variant');
 
     // Orders (admin)
     Route::get('/orders', [OrderController::class, 'indexPaginated']);
