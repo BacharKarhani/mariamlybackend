@@ -131,7 +131,7 @@ class ProductController extends Controller
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
             // NEW: allow a single top-level image
-            'image'         => 'nullable|image|max:2048', 
+            'image'         => 'required_without:variants|nullable|image|max:2048', 
             // Variant rules remain for multi-variant products
             'variants'      => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string|max:50',
@@ -185,6 +185,11 @@ class ProductController extends Controller
                     }
                 }
             }
+        }
+        // Handle single product image when no variants are provided
+        elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public');
+            $product->update(['image' => $path]);
         }
 
 
@@ -278,6 +283,17 @@ class ProductController extends Controller
                     }
                 }
             }
+        }
+        // Handle single product image update when no variants are provided
+        elseif ($request->hasFile('image')) {
+            // Delete existing product image if it exists
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+            
+            // Store the new image
+            $path = $request->file('image')->store('products', 'public');
+            $product->update(['image' => $path]);
         }
 
         return response()->json([
