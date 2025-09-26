@@ -166,7 +166,7 @@ class ProductController extends Controller
         // Attach categories to the product
         $product->categories()->attach($request->category_ids);
 
-        // Option 1: Handle explicit variants upload
+        // Handle explicit variants upload
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
             foreach ($request->variants as $variantData) {
                 $variantDataArray = [
@@ -185,18 +185,6 @@ class ProductController extends Controller
                     }
                 }
             }
-        } 
-        // Option 2: Handle a single main product image for non-variant products (Creating a "Default" variant)
-        elseif ($request->hasFile('image')) {
-            // 1. Create a "Default" variant to hold the image
-            $variant = $product->variants()->create([
-                'color' => 'Default',
-                'hex_color' => '#FFFFFF', // Use a neutral default color
-            ]);
-
-            // 2. Store the single image and link it to the Default variant
-            $path = $request->file('image')->store('products', 'public');
-            $variant->images()->create(['path' => $path]);
         }
 
 
@@ -263,7 +251,7 @@ class ProductController extends Controller
         // Sync categories (this will detach old ones and attach new ones)
         $product->categories()->sync($request->category_ids);
 
-        // Option 1: Update/Replace variants if explicitly provided
+        // Update/Replace variants if explicitly provided
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
             // Delete existing variants and their images (FULL REPLACEMENT strategy)
             foreach ($product->variants as $variant) {
@@ -290,27 +278,6 @@ class ProductController extends Controller
                     }
                 }
             }
-        } 
-        // Option 2: Update the single main product image (non-variant)
-        elseif ($request->hasFile('image')) {
-            
-            // Find or create the "Default" variant
-            $defaultVariant = $product->variants()->where('color', 'Default')->first();
-            
-            if (!$defaultVariant) {
-                // If it doesn't exist, create it (newly single-image product)
-                $defaultVariant = $product->variants()->create(['color' => 'Default', 'hex_color' => '#FFFFFF']);
-            }
-            
-            // 1. Delete existing images for the Default variant
-            foreach ($defaultVariant->images as $image) {
-                Storage::disk('public')->delete($image->path);
-                $image->delete();
-            }
-
-            // 2. Store the new single image and link it
-            $path = $request->file('image')->store('products', 'public');
-            $defaultVariant->images()->create(['path' => $path]);
         }
 
         return response()->json([
