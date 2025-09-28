@@ -7,6 +7,7 @@ use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\RecentlyViewed;
 use App\Models\Brand;
+use App\Models\Subcategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -336,11 +337,13 @@ class ProductController extends Controller
 
     public function related(Product $product)
     {
-        $related = Product::whereHas('categories', function($q) use ($product) {
-                $q->whereIn('categories.id', $product->categories->pluck('id'));
-            })
+        // Get all subcategories that belong to the same categories as the selected product
+        $subcategoryIds = Subcategory::whereIn('category_id', $product->categories->pluck('id'))
+            ->pluck('id');
+
+        $related = Product::whereIn('subcategory_id', $subcategoryIds)
             ->where('id', '!=', $product->id)
-            ->with(['categories','brand','variants.images'])
+            ->with(['categories','subcategory','brand','variants.images'])
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
