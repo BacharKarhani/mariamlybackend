@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Brand extends Model
 {
-    protected $fillable = ['name', 'image', 'is_active'];
+    protected $fillable = ['name', 'image', 'is_active', 'sort_order'];
     protected $casts = ['is_active' => 'boolean'];
     protected $appends = ['image_url'];
 
@@ -23,5 +23,13 @@ class Brand extends Model
     public function getImageUrlAttribute(): ?string
     {
         return $this->image ? asset('storage/' . $this->image) : null;
+    }
+
+    /**
+     * Scope to order brands by sort_order
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order')->orderBy('id');
     }
 }

@@ -172,6 +172,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::match(['put', 'patch'], '/brands/{brand}', [BrandController::class, 'update'])->whereNumber('brand');
     Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->whereNumber('brand');
     Route::get('/brands/{brand}', [BrandController::class, 'show'])->whereNumber('brand');
+    
+    // Brand ordering routes
+    Route::post('/brands/reorder', [BrandController::class, 'reorder']);
+    Route::post('/brands/{brand}/move-up', [BrandController::class, 'moveUp'])->whereNumber('brand');
+    Route::post('/brands/{brand}/move-down', [BrandController::class, 'moveDown'])->whereNumber('brand');
 
     // Products (admin CRUD)
     Route::get('/admin/products', [ProductController::class, 'indexAdmin']); // Admin products list
