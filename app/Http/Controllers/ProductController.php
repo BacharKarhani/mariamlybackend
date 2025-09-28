@@ -135,7 +135,8 @@ class ProductController extends Controller
             'image'         => 'required_without:variants|nullable|image|max:2048', 
             // Variant rules remain for multi-variant products
             'variants'      => 'nullable|array',
-            'variants.*.color' => 'required_with:variants|string|max:50',
+            'variants.*.color' => 'nullable|string|max:50',
+            'variants.*.size' => 'nullable|string|max:20',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'variants.*.sku' => 'nullable|string|max:100',
             'variants.*.quantity' => 'nullable|integer|min:0',
@@ -174,7 +175,8 @@ class ProductController extends Controller
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
             foreach ($request->variants as $index => $variantData) {
                 $variantDataArray = [
-                    'color' => $variantData['color'],
+                    'color' => $variantData['color'] ?? null,
+                    'size' => $variantData['size'] ?? null,
                     'hex_color' => $variantData['hex_color'] ?? null,
                     'sku' => $variantData['sku'] ?? null,
                     'quantity' => $variantData['quantity'] ?? 0,
@@ -230,7 +232,8 @@ class ProductController extends Controller
             'new_until'     => 'nullable|date',
             // Variant rules remain
             'variants'      => 'nullable|array',
-            'variants.*.color' => 'required_with:variants|string|max:50',
+            'variants.*.color' => 'nullable|string|max:50',
+            'variants.*.size' => 'nullable|string|max:20',
             'variants.*.hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'variants.*.sku' => 'nullable|string|max:100',
             'variants.*.quantity' => 'nullable|integer|min:0',
@@ -279,7 +282,8 @@ class ProductController extends Controller
             // Create new variants
             foreach ($request->variants as $index => $variantData) {
                 $variantDataArray = [
-                    'color' => $variantData['color'],
+                    'color' => $variantData['color'] ?? null,
+                    'size' => $variantData['size'] ?? null,
                     'hex_color' => $variantData['hex_color'] ?? null,
                     'sku' => $variantData['sku'] ?? null,
                     'quantity' => $variantData['quantity'] ?? 0,

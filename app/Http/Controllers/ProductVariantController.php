@@ -42,7 +42,8 @@ class ProductVariantController extends Controller
     public function store(Request $request, Product $product)
     {
         $request->validate([
-            'color' => 'required|string|max:50',
+            'color' => 'nullable|string|max:50',
+            'size' => 'nullable|string|max:20',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'sku' => 'nullable|string|max:100|unique:product_variants,sku',
             'quantity' => 'nullable|integer|min:0',
@@ -53,6 +54,7 @@ class ProductVariantController extends Controller
 
         $variantData = [
             'color' => $request->color,
+            'size' => $request->size,
             'sku' => $request->sku,
             'quantity' => $request->quantity ?? 0,
             'sort_order' => $request->sort_order ?? $product->variants()->max('sort_order') + 1
@@ -84,7 +86,8 @@ class ProductVariantController extends Controller
     public function update(Request $request, ProductVariant $variant)
     {
         $request->validate([
-            'color' => 'required|string|max:50',
+            'color' => 'nullable|string|max:50',
+            'size' => 'nullable|string|max:20',
             'hex_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
             'quantity' => 'nullable|integer|min:0',
@@ -95,6 +98,7 @@ class ProductVariantController extends Controller
 
         $updateData = [
             'color' => $request->color,
+            'size' => $request->size,
             'sku' => $request->sku,
             'quantity' => $request->quantity ?? $variant->quantity
         ];
