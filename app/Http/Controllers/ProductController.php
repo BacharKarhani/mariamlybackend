@@ -124,7 +124,7 @@ class ProductController extends Controller
             'buying_price'  => 'required|numeric|min:0',
             'regular_price' => 'required|numeric|min:0',
             'discount'      => 'nullable|numeric|min:0|max:100',
-            'quantity'      => 'required|integer|min:0',
+            'quantity'      => 'required_without:variants|integer|min:0',
             'weight'        => 'nullable|string|max:100',
             'ingredients'   => 'nullable|string',
             'usage_instructions' => 'nullable|string',
@@ -159,7 +159,7 @@ class ProductController extends Controller
             'regular_price' => $regularPrice,
             'discount'      => $discount,
             'selling_price' => $sellingPrice,
-            'quantity'      => $request->quantity,
+            'quantity'      => $request->has('variants') ? 0 : $request->quantity, // Set to 0 if variants exist
             'weight'        => $request->weight,
             'ingredients'   => $request->ingredients,
             'usage_instructions' => $request->usage_instructions,
@@ -193,6 +193,9 @@ class ProductController extends Controller
                     }
                 }
             }
+            
+            // Sync product quantity with variant quantities
+            $product->syncQuantityFromVariants();
         }
         // Handle single product image when no variants are provided
         elseif ($request->hasFile('image')) {
@@ -221,7 +224,7 @@ class ProductController extends Controller
             'buying_price'  => 'required|numeric|min:0',
             'regular_price' => 'required|numeric|min:0',
             'discount'      => 'nullable|numeric|min:0|max:100',
-            'quantity'      => 'required|integer|min:0',
+            'quantity'      => 'required_without:variants|integer|min:0',
             'weight'        => 'nullable|string|max:100',
             'ingredients'   => 'nullable|string',
             'usage_instructions' => 'nullable|string',
@@ -246,7 +249,7 @@ class ProductController extends Controller
         $discount       = $request->discount ?? 0;
         $sellingPrice   = $regularPrice - ($regularPrice * $discount / 100);
 
-        $product->update([
+        $updateData = [
             'name'          => $request->name,
             'sku'           => $request->sku,
             'desc'          => $request->desc,
@@ -256,14 +259,20 @@ class ProductController extends Controller
             'regular_price' => $regularPrice,
             'discount'      => $discount,
             'selling_price' => $sellingPrice,
-            'quantity'      => $request->quantity,
             'weight'        => $request->weight,
             'ingredients'   => $request->ingredients,
             'usage_instructions' => $request->usage_instructions,
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : $product->is_trending,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
-        ]);
+        ];
+
+        // Only update quantity if product doesn't have variants
+        if (!$request->has('variants') || !is_array($request->variants) || count($request->variants) === 0) {
+            $updateData['quantity'] = $request->quantity;
+        }
+
+        $product->update($updateData);
 
         // Sync categories (this will detach old ones and attach new ones)
         $product->categories()->sync($request->category_ids);
@@ -299,6 +308,9 @@ class ProductController extends Controller
                     }
                 }
             }
+            
+            // Sync product quantity with variant quantities
+            $product->syncQuantityFromVariants();
         }
         // Handle single product image update when no variants are provided
         elseif ($request->hasFile('image')) {

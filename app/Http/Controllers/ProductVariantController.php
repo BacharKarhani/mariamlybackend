@@ -73,6 +73,9 @@ class ProductVariantController extends Controller
             $variant->images()->create(['path' => $path]);
         }
 
+        // Sync product quantity with variant quantities
+        $product->syncQuantityFromVariants();
+
         return response()->json([
             'success' => true,
             'message' => 'Variant created successfully',
@@ -130,6 +133,9 @@ class ProductVariantController extends Controller
             }
         }
 
+        // Sync product quantity with variant quantities
+        $variant->product->syncQuantityFromVariants();
+
         return response()->json([
             'success' => true,
             'message' => 'Variant updated successfully',
@@ -148,7 +154,11 @@ class ProductVariantController extends Controller
             $image->delete();
         }
 
+        $product = $variant->product; // Store reference before deletion
         $variant->delete();
+
+        // Sync product quantity with remaining variant quantities
+        $product->syncQuantityFromVariants();
 
         return response()->json([
             'success' => true,

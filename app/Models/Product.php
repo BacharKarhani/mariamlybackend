@@ -39,7 +39,7 @@ class Product extends Model
     ];
 
     // show both in JSON
-    protected $appends = ['is_new_active', 'image_url'];
+    protected $appends = ['is_new_active', 'image_url', 'total_quantity', 'has_variants'];
 
     public function getIsNewActiveAttribute(): bool
     {
@@ -73,6 +73,51 @@ class Product extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Get total quantity from all variants (if product has variants) or from product quantity field
+     */
+    public function getTotalQuantityAttribute(): int
+    {
+        if ($this->has_variants) {
+            return $this->variants()->sum('quantity');
+        }
+        return $this->quantity ?? 0;
+    }
+
+    /**
+     * Check if product has variants
+     */
+    public function getHasVariantsAttribute(): bool
+    {
+        return $this->variants()->exists();
+    }
+
+    /**
+     * Check if product is in stock (considering variants)
+     */
+    public function isInStock(): bool
+    {
+        return $this->total_quantity > 0;
+    }
+
+    /**
+     * Check if product is out of stock (considering variants)
+     */
+    public function isOutOfStock(): bool
+    {
+        return $this->total_quantity <= 0;
+    }
+
+    /**
+     * Update product quantity field to match variant quantities (for products with variants)
+     */
+    public function syncQuantityFromVariants(): void
+    {
+        if ($this->has_variants) {
+            $this->update(['quantity' => $this->variants()->sum('quantity')]);
+        }
     }
 
     // Scope للمنتجات الجديدة الفعّالة
