@@ -18,11 +18,16 @@ class Banner extends Model
         'sort_order' => 0,
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'is_video'];
 
     public function getImageUrlAttribute(): string
     {
         return asset('storage/' . $this->image_path);
+    }
+
+    public function getIsVideoAttribute(): bool
+    {
+        return $this->image_path && pathinfo($this->image_path, PATHINFO_EXTENSION) === 'mp4';
     }
 
     public function scopeActive($q)

@@ -17,7 +17,7 @@ class BannerController extends Controller
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get(['id','image_path','sort_order','is_active'])
-            ->each->setAppends(['image_url']); // يضمن image_url
+            ->each->setAppends(['image_url', 'is_video']); // يضمن image_url و is_video
 
         return response()->json([
             'success' => true,
@@ -41,7 +41,12 @@ class BannerController extends Controller
     public function store(StoreBannerRequest $request)
     {
         try {
-            $path = $request->file('image')->store('banners','public');
+            $file = $request->file('image');
+            $extension = $file->getClientOriginalExtension();
+            
+            // Store in different directories based on file type
+            $directory = $extension === 'mp4' ? 'banners/videos' : 'banners/images';
+            $path = $file->store($directory, 'public');
 
             $banner = Banner::create([
                 'image_path'  => $path,
@@ -52,7 +57,7 @@ class BannerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Banner created',
-                'banner'  => $banner
+                'banner'  => $banner->setAppends(['image_url', 'is_video'])
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -70,7 +75,13 @@ class BannerController extends Controller
                 if ($banner->image_path && Storage::disk('public')->exists($banner->image_path)) {
                     Storage::disk('public')->delete($banner->image_path);
                 }
-                $banner->image_path = $request->file('image')->store('banners','public');
+                
+                $file = $request->file('image');
+                $extension = $file->getClientOriginalExtension();
+                
+                // Store in different directories based on file type
+                $directory = $extension === 'mp4' ? 'banners/videos' : 'banners/images';
+                $banner->image_path = $file->store($directory, 'public');
             }
 
             $banner->fill($request->only(['sort_order','is_active']))->save();
@@ -78,7 +89,7 @@ class BannerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Banner updated',
-                'banner'  => $banner
+                'banner'  => $banner->setAppends(['image_url', 'is_video'])
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -137,7 +148,7 @@ class BannerController extends Controller
     {
         return response()->json([
             'success' => true,
-            'banner'  => $banner
+            'banner'  => $banner->setAppends(['image_url', 'is_video'])
         ]);
     }
 }

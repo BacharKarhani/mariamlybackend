@@ -14,7 +14,7 @@ class StoreBannerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'image'      => ['required','image','mimes:jpg,jpeg,png,webp','max:1024'], // 1MB max
+            'image'      => ['required','file','mimes:jpg,jpeg,png,webp,mp4','max:10240'], // 10MB max for videos
             'sort_order' => ['nullable','integer'],
             'is_active'  => ['nullable','boolean'],
         ];

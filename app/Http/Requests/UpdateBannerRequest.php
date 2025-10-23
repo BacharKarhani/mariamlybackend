@@ -11,7 +11,7 @@ class UpdateBannerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'image'      => ['sometimes','image','mimes:jpg,jpeg,png,webp','max:1024'], // 1MB max
+            'image'      => ['sometimes','file','mimes:jpg,jpeg,png,webp,mp4','max:10240'], // 10MB max for videos
             'sort_order' => ['nullable','integer','min:0'],
             'is_active'  => ['nullable','boolean'],
         ];
