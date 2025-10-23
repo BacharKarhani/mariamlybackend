@@ -797,4 +797,71 @@ public function adminSearch(Request $request)
         'products' => $products,
     ]);
 }
+// Admin: Get products with low stock (quantity < 3)
+public function lowStock(Request $request)
+{
+    // Validate incoming filters
+    $request->validate([
+        'search'      => 'nullable|string|min:1',
+        'category_id' => 'nullable|integer|exists:categories,id',
+        'brand_id'    => 'nullable|integer|exists:brands,id',
+        'sort'        => 'nullable|in:quantity_low,quantity_high,name_asc,name_desc,latest',
+        'per_page'    => 'nullable|integer|min:1|max:100',
+        'page'        => 'nullable|integer|min:1',
+        'tags'        => 'nullable|string',
+    ]);
+
+    $perPage = (int) $request->input('per_page', 20);
+
+    $query = Product::with(['categories','subcategory','brand','variants.images'])
+        ->where('quantity', '<', 3)
+        ->when($request->filled('category_id'),
+            fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
+        ->when($request->filled('brand_id'),
+            fn($q) => $q->where('brand_id', $request->integer('brand_id')))
+        ->when($request->filled('search'), function ($q) use ($request) {
+            $s = trim($request->input('search'));
+            $q->where(function ($qq) use ($s) {
+                $qq->where('name', 'like', "%{$s}%")
+                   ->orWhere('desc', 'like', "%{$s}%")
+                   ->orWhere('tags', 'like', "%{$s}%");
+            });
+        })
+        ->when($request->filled('tags'), function ($q) use ($request) {
+            $tags = trim($request->input('tags'));
+            $q->where('tags', 'like', "%{$tags}%");
+        });
+
+    // Sorting
+    $sort = $request->input('sort', 'quantity_low');
+    $query->when(true, function ($q) use ($sort) {
+        switch ($sort) {
+            case 'quantity_high':
+                $q->orderBy('quantity', 'desc');
+                break;
+            case 'name_asc':
+                $q->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $q->orderBy('name', 'desc');
+                break;
+            case 'latest':
+                $q->orderBy('id', 'desc');
+                break;
+            case 'quantity_low':
+            default:
+                $q->orderBy('quantity', 'asc');
+                break;
+        }
+    });
+
+    // Paginate
+    $products = $query->paginate($perPage)->appends($request->query());
+
+    return response()->json([
+        'success' => true,
+        'filters' => $request->only(['search','category_id','brand_id','sort','tags']),
+        'low_stock_products' => $products
+    ]);
+}
 }

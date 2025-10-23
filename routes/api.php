@@ -156,6 +156,7 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/products/count', [ProductController::class, 'totalCount']);
     Route::get('/products/admin', [ProductController::class, 'indexAdmin']);
     Route::get('/products/admin/search', [ProductController::class, 'adminSearch']);
+    Route::get('/products/low-stock', [ProductController::class, 'lowStock']);
 
     // Categories (admin CRUD)
     Route::post('/categories', [CategoryController::class, 'store']);
