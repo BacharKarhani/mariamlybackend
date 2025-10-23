@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use App\Mail\PasswordResetMail;
 
 class AuthController extends Controller
 {
@@ -211,4 +215,176 @@ class AuthController extends Controller
 
     return response()->json(['total' => User::count()], 200);
 }
+
+    /**
+     * Send password reset verification code to user's email
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $email = $request->email;
+        
+        // Find the user to get their name
+        $user = User::where('email', $email)->first();
+        
+        // Generate a 6-digit verification code
+        $verificationCode = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // Store the verification code in password_resets table
+        DB::table('password_resets')->updateOrInsert(
+            ['email' => $email],
+            [
+                'email' => $email,
+                'token' => Hash::make($verificationCode),
+                'created_at' => now()
+            ]
+        );
+
+        try {
+            // Send email with verification code
+            Mail::to($email)->send(new PasswordResetMail(
+                $verificationCode,
+                $user->fname . ' ' . $user->lname,
+                $email
+            ));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset verification code sent to your email.',
+                'email' => $email,
+                'expires_in_minutes' => 10
+            ]);
+        } catch (\Exception $e) {
+            // Log the error (you might want to use Laravel's logging)
+            \Log::error('Failed to send password reset email: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send verification code. Please try again later.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset password using verification code
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'verification_code' => 'required|string|size:6',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $email = $request->email;
+        $verificationCode = $request->verification_code;
+        $password = $request->password;
+
+        // Find the password reset record
+        $passwordReset = DB::table('password_resets')
+            ->where('email', $email)
+            ->first();
+
+        if (!$passwordReset) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No verification code found for this email. Please request a new one.'
+            ], 400);
+        }
+
+        // Check if verification code is valid (not expired - 10 minutes)
+        if (now()->diffInMinutes($passwordReset->created_at) > 10) {
+            // Delete expired verification code
+            DB::table('password_resets')->where('email', $email)->delete();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification code has expired. Please request a new one.'
+            ], 400);
+        }
+
+        // Verify the verification code
+        if (!Hash::check($verificationCode, $passwordReset->token)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid verification code.'
+            ], 400);
+        }
+
+        // Find the user
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.'
+            ], 404);
+        }
+
+        // Update the user's password
+        $user->password = Hash::make($password);
+        $user->save();
+
+        // Delete the used verification code
+        DB::table('password_resets')->where('email', $email)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password has been reset successfully.'
+        ]);
+    }
+
+    /**
+     * Verify the verification code without resetting password
+     */
+    public function verifyResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'verification_code' => 'required|string|size:6',
+        ]);
+
+        $email = $request->email;
+        $verificationCode = $request->verification_code;
+
+        // Find the password reset record
+        $passwordReset = DB::table('password_resets')
+            ->where('email', $email)
+            ->first();
+
+        if (!$passwordReset) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No verification code found for this email. Please request a new one.'
+            ], 400);
+        }
+
+        // Check if verification code is valid (not expired - 10 minutes)
+        if (now()->diffInMinutes($passwordReset->created_at) > 10) {
+            // Delete expired verification code
+            DB::table('password_resets')->where('email', $email)->delete();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification code has expired. Please request a new one.'
+            ], 400);
+        }
+
+        // Verify the verification code
+        if (!Hash::check($verificationCode, $passwordReset->token)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid verification code.'
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Verification code is valid.',
+            'email' => $email
+        ]);
+    }
 }

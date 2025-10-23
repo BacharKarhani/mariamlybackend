@@ -32,7 +32,38 @@ use App\Http\Controllers\PagesBannersImageController;
 */
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/ping', [AuthController::class, 'ping']);
+
+// Test email route (remove in production)
+Route::get('/test-email/{email}', function($email) {
+    try {
+        $user = \App\Models\User::where('email', $email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+        
+        $verificationCode = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        
+        \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\PasswordResetMail(
+            $verificationCode,
+            $user->fname . ' ' . $user->lname,
+            $email
+        ));
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Test email sent successfully',
+            'verification_code' => $verificationCode // Only for testing
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to send email: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
 /*
 |--------------------------------------------------------------------------
