@@ -28,6 +28,7 @@ class Product extends Model
         'discount',
         'is_new',
         'new_until',
+        'tags',
     ];
 
     protected $casts = [

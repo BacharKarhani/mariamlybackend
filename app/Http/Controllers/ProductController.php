@@ -29,6 +29,7 @@ class ProductController extends Controller
             'page'          => 'nullable|integer|min:1',
             'is_trending'   => 'nullable|boolean',
             'is_new'        => 'nullable|boolean',
+            'tags'          => 'nullable|string',
         ]);
 
         $perPage = (int) $request->input('per_page', 12);
@@ -48,8 +49,13 @@ class ProductController extends Controller
                 $s = trim($request->input('search'));
                 $q->where(function ($qq) use ($s) {
                     $qq->where('name', 'like', "%{$s}%")
-                        ->orWhere('desc', 'like', "%{$s}%");
+                        ->orWhere('desc', 'like', "%{$s}%")
+                        ->orWhere('tags', 'like', "%{$s}%");
                 });
+            })
+            ->when($request->filled('tags'), function ($q) use ($request) {
+                $tags = trim($request->input('tags'));
+                $q->where('tags', 'like', "%{$tags}%");
             })
             // price filters on selling_price (the price you display to users)
             ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
@@ -131,6 +137,8 @@ class ProductController extends Controller
             'is_trending'   => 'sometimes|boolean',
             'is_new'        => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
+            'tags'          => 'nullable|string|max:500',
+            'tags'          => 'nullable|string|max:500',
             // NEW: allow a single top-level image
             'image'         => 'required_without:variants|nullable|image|max:2048', 
             // Variant rules remain for multi-variant products
@@ -166,6 +174,7 @@ class ProductController extends Controller
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : false,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : false,
             'new_until'     => $request->new_until,
+            'tags'          => $request->tags,
         ]);
 
         // Attach categories to the product
@@ -265,6 +274,7 @@ class ProductController extends Controller
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : $product->is_trending,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
+            'tags'          => $request->has('tags') ? $request->tags : $product->tags,
         ];
 
         // Only update quantity if product doesn't have variants
@@ -496,6 +506,7 @@ public function discounted(Request $request)
         'category_id'  => 'nullable|integer|exists:categories,id',
         'brand_id'     => 'nullable|integer|exists:brands,id',
         'search'       => 'nullable|string|min:1',
+        'tags'         => 'nullable|string',
     ]);
 
     $perPage     = (int) $request->input('per_page', 12);
@@ -513,8 +524,13 @@ public function discounted(Request $request)
             $s = trim($request->input('search'));
             $q->where(function ($qq) use ($s) {
                 $qq->where('name', 'like', "%{$s}%")
-                   ->orWhere('desc', 'like', "%{$s}%");
+                   ->orWhere('desc', 'like', "%{$s}%")
+                   ->orWhere('tags', 'like', "%{$s}%");
             });
+        })
+        ->when($request->filled('tags'), function ($q) use ($request) {
+            $tags = trim($request->input('tags'));
+            $q->where('tags', 'like', "%{$tags}%");
         });
 
     // الترتيب
@@ -584,6 +600,7 @@ public function indexAdmin(Request $request)
         'is_trending' => 'nullable|boolean',
         'is_new'      => 'nullable|boolean',
         'show_inactive' => 'nullable|boolean', // Show products with 0 quantity
+        'tags'        => 'nullable|string',
     ]);
 
     $perPage = (int) $request->input('per_page', 20);
@@ -603,8 +620,13 @@ public function indexAdmin(Request $request)
             $s = trim($request->input('search'));
             $q->where(function ($qq) use ($s) {
                 $qq->where('name', 'like', "%{$s}%")
-                   ->orWhere('desc', 'like', "%{$s}%");
+                   ->orWhere('desc', 'like', "%{$s}%")
+                   ->orWhere('tags', 'like', "%{$s}%");
             });
+        })
+        ->when($request->filled('tags'), function ($q) use ($request) {
+            $tags = trim($request->input('tags'));
+            $q->where('tags', 'like', "%{$tags}%");
         })
         // Price filters on selling_price
         ->when($request->filled('min_price') && $request->filled('max_price'), function ($q) use ($request) {
