@@ -18,6 +18,11 @@ class ProductVariant extends Model
         'sku',
         'quantity',
         'sort_order',
+        'buying_price',
+        'regular_price',
+        'discount',
+        'selling_price',
+        'weight',
     ];
 
     public function product()
@@ -93,5 +98,60 @@ class ProductVariant extends Model
     public function isOutOfStock()
     {
         return $this->quantity <= 0;
+    }
+
+    /**
+     * Get the effective selling price for this variant
+     * Falls back to product price if variant doesn't have its own pricing
+     */
+    public function getEffectiveSellingPriceAttribute()
+    {
+        return $this->selling_price ?? $this->product->selling_price;
+    }
+
+    /**
+     * Get the effective regular price for this variant
+     * Falls back to product price if variant doesn't have its own pricing
+     */
+    public function getEffectiveRegularPriceAttribute()
+    {
+        return $this->regular_price ?? $this->product->regular_price;
+    }
+
+    /**
+     * Get the effective discount for this variant
+     * Falls back to product discount if variant doesn't have its own pricing
+     */
+    public function getEffectiveDiscountAttribute()
+    {
+        return $this->discount ?? $this->product->discount;
+    }
+
+    /**
+     * Get the effective buying price for this variant
+     * Falls back to product price if variant doesn't have its own pricing
+     */
+    public function getEffectiveBuyingPriceAttribute()
+    {
+        return $this->buying_price ?? $this->product->buying_price;
+    }
+
+    /**
+     * Check if this variant has its own pricing (different from product)
+     */
+    public function hasCustomPricing()
+    {
+        return !is_null($this->selling_price) || !is_null($this->regular_price) || !is_null($this->buying_price);
+    }
+
+    /**
+     * Calculate selling price based on regular price and discount
+     */
+    public function calculateSellingPrice()
+    {
+        if ($this->regular_price && $this->discount) {
+            return $this->regular_price - ($this->regular_price * $this->discount / 100);
+        }
+        return $this->regular_price ?? $this->selling_price;
     }
 }

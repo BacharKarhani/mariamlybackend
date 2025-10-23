@@ -34,7 +34,9 @@ class ProductController extends Controller
 
         $perPage = (int) $request->input('per_page', 12);
 
-        $query = Product::with(['categories','subcategory','brand','variants.images'])
+        $query = Product::with(['categories','subcategory','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
             ->when($request->filled('category_id'),
                 fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
             ->when($request->filled('subcategory_id'),
@@ -86,6 +88,10 @@ class ProductController extends Controller
         $user = auth('sanctum')->user();
         if (! $user || $user->role_id !== 1) {
             $products->getCollection()->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $products->getCollection()->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
         }
 
         // Return paginator structure (your FE already handles data/last_page/total)
@@ -94,12 +100,16 @@ class ProductController extends Controller
 
     public function show(Request $request, Product $product)
     {
-        $product->load(['categories','subcategory','brand','variants.images']);
+        $product->load(['categories','subcategory','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }]);
 
         // Hide buying price from non-admins or guests
         $user = auth('sanctum')->user();
         if (!$user || $user->role_id !== 1) {
             $product->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $product->variants->makeHidden('buying_price');
         }
 
         // Log to recently_viewed if user is logged in
@@ -149,6 +159,11 @@ class ProductController extends Controller
             'variants.*.sku' => 'nullable|string|max:100',
             'variants.*.quantity' => 'nullable|integer|min:0',
             'variants.*.sort_order' => 'nullable|integer|min:0',
+            'variants.*.buying_price' => 'nullable|numeric|min:0',
+            'variants.*.regular_price' => 'nullable|numeric|min:0',
+            'variants.*.discount' => 'nullable|numeric|min:0|max:100',
+            'variants.*.selling_price' => 'nullable|numeric|min:0',
+            'variants.*.weight' => 'nullable|string|max:100',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
@@ -183,13 +198,23 @@ class ProductController extends Controller
         // Handle explicit variants upload
         if ($request->has('variants') && is_array($request->variants) && count($request->variants) > 0) {
             foreach ($request->variants as $index => $variantData) {
+                // Calculate variant pricing
+                $variantRegularPrice = $variantData['regular_price'] ?? $regularPrice;
+                $variantDiscount = $variantData['discount'] ?? $discount;
+                $variantSellingPrice = $variantData['selling_price'] ?? ($variantRegularPrice - ($variantRegularPrice * $variantDiscount / 100));
+
                 $variantDataArray = [
                     'color' => $variantData['color'] ?? null,
                     'size' => $variantData['size'] ?? null,
                     'hex_color' => $variantData['hex_color'] ?? null,
                     'sku' => $variantData['sku'] ?? null,
                     'quantity' => $variantData['quantity'] ?? 0,
-                    'sort_order' => $variantData['sort_order'] ?? $index
+                    'sort_order' => $variantData['sort_order'] ?? $index,
+                    'buying_price' => $variantData['buying_price'] ?? $request->buying_price,
+                    'regular_price' => $variantRegularPrice,
+                    'discount' => $variantDiscount,
+                    'selling_price' => $variantSellingPrice,
+                    'weight' => $variantData['weight'] ?? null,
                 ];
 
                 $variant = $product->variants()->create($variantDataArray);
@@ -250,6 +275,11 @@ class ProductController extends Controller
             'variants.*.sku' => 'nullable|string|max:100',
             'variants.*.quantity' => 'nullable|integer|min:0',
             'variants.*.sort_order' => 'nullable|integer|min:0',
+            'variants.*.buying_price' => 'nullable|numeric|min:0',
+            'variants.*.regular_price' => 'nullable|numeric|min:0',
+            'variants.*.discount' => 'nullable|numeric|min:0|max:100',
+            'variants.*.selling_price' => 'nullable|numeric|min:0',
+            'variants.*.weight' => 'nullable|string|max:100',
             'variants.*.images' => 'required_with:variants|array|min:1',
             'variants.*.images.*' => 'required_with:variants|image|max:2048',
         ]);
@@ -300,13 +330,23 @@ class ProductController extends Controller
 
             // Create new variants
             foreach ($request->variants as $index => $variantData) {
+                // Calculate variant pricing
+                $variantRegularPrice = $variantData['regular_price'] ?? $regularPrice;
+                $variantDiscount = $variantData['discount'] ?? $discount;
+                $variantSellingPrice = $variantData['selling_price'] ?? ($variantRegularPrice - ($variantRegularPrice * $variantDiscount / 100));
+
                 $variantDataArray = [
                     'color' => $variantData['color'] ?? null,
                     'size' => $variantData['size'] ?? null,
                     'hex_color' => $variantData['hex_color'] ?? null,
                     'sku' => $variantData['sku'] ?? null,
                     'quantity' => $variantData['quantity'] ?? 0,
-                    'sort_order' => $variantData['sort_order'] ?? $index
+                    'sort_order' => $variantData['sort_order'] ?? $index,
+                    'buying_price' => $variantData['buying_price'] ?? $request->buying_price,
+                    'regular_price' => $variantRegularPrice,
+                    'discount' => $variantDiscount,
+                    'selling_price' => $variantSellingPrice,
+                    'weight' => $variantData['weight'] ?? null,
                 ];
 
                 $variant = $product->variants()->create($variantDataArray);
@@ -369,11 +409,17 @@ class ProductController extends Controller
 
         $related = Product::whereIn('subcategory_id', $subcategoryIds)
             ->where('id', '!=', $product->id)
-            ->with(['categories','subcategory','brand','variants.images'])
+            ->with(['categories','subcategory','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
             $related->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $related->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
         }
 
         return response()->json([
@@ -385,12 +431,18 @@ class ProductController extends Controller
     // Get all trending products
     public function trending()
     {
-        $products = Product::with(['categories','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
             ->where('is_trending', true)
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
             $products->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $products->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
         }
 
         return response()->json([
@@ -402,12 +454,18 @@ class ProductController extends Controller
     // NEW: قائمة المنتجات الجديدة (فعّالة بحسب is_new/new_until)
     public function newProducts()
     {
-        $products = Product::with(['categories','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
             ->newActive()
             ->get();
 
         if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
             $products->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $products->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
         }
 
         return response()->json([
@@ -432,12 +490,18 @@ class ProductController extends Controller
             ->limit(10)
             ->pluck('product_id');
 
-        $products = Product::with(['categories','brand','variants.images'])
+        $products = Product::with(['categories','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
             ->whereIn('id', $productIds)
             ->get();
 
         if ($user->role_id !== 1) {
             $products->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $products->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
         }
 
         return response()->json([

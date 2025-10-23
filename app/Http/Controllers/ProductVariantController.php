@@ -48,16 +48,31 @@ class ProductVariantController extends Controller
             'sku' => 'nullable|string|max:100|unique:product_variants,sku',
             'quantity' => 'nullable|integer|min:0',
             'sort_order' => 'nullable|integer|min:0',
+            'buying_price' => 'nullable|numeric|min:0',
+            'regular_price' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0|max:100',
+            'selling_price' => 'nullable|numeric|min:0',
+            'weight' => 'nullable|string|max:100',
             'images' => 'required|array|min:1',
             'images.*' => 'required|image|max:2048',
         ]);
+
+        // Calculate pricing if not provided
+        $regularPrice = $request->regular_price ?? $product->regular_price;
+        $discount = $request->discount ?? $product->discount;
+        $sellingPrice = $request->selling_price ?? ($regularPrice - ($regularPrice * $discount / 100));
 
         $variantData = [
             'color' => $request->color,
             'size' => $request->size,
             'sku' => $request->sku,
             'quantity' => $request->quantity ?? 0,
-            'sort_order' => $request->sort_order ?? $product->variants()->max('sort_order') + 1
+            'sort_order' => $request->sort_order ?? $product->variants()->max('sort_order') + 1,
+            'buying_price' => $request->buying_price ?? $product->buying_price,
+            'regular_price' => $regularPrice,
+            'discount' => $discount,
+            'selling_price' => $sellingPrice,
+            'weight' => $request->weight,
         ];
 
         // Handle hex color if provided
@@ -95,15 +110,30 @@ class ProductVariantController extends Controller
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
             'quantity' => 'nullable|integer|min:0',
             'sort_order' => 'nullable|integer|min:0',
+            'buying_price' => 'nullable|numeric|min:0',
+            'regular_price' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0|max:100',
+            'selling_price' => 'nullable|numeric|min:0',
+            'weight' => 'nullable|string|max:100',
             'images' => 'sometimes|array|min:1',
             'images.*' => 'sometimes|image|max:2048',
         ]);
+
+        // Calculate pricing if provided
+        $regularPrice = $request->regular_price ?? $variant->regular_price ?? $variant->product->regular_price;
+        $discount = $request->discount ?? $variant->discount ?? $variant->product->discount;
+        $sellingPrice = $request->selling_price ?? ($regularPrice - ($regularPrice * $discount / 100));
 
         $updateData = [
             'color' => $request->color,
             'size' => $request->size,
             'sku' => $request->sku,
-            'quantity' => $request->quantity ?? $variant->quantity
+            'quantity' => $request->quantity ?? $variant->quantity,
+            'buying_price' => $request->buying_price ?? $variant->buying_price ?? $variant->product->buying_price,
+            'regular_price' => $regularPrice,
+            'discount' => $discount,
+            'selling_price' => $sellingPrice,
+            'weight' => $request->weight ?? $variant->weight,
         ];
 
         // Handle hex color update if provided
