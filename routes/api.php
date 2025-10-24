@@ -95,6 +95,7 @@ Route::get('/products/{product}/related', [ProductController::class, 'related'])
 
 // Zones
 Route::get('/zones', [ZoneController::class, 'index']);
+Route::post('/zones/shipping-price', [ZoneController::class, 'getShippingPrice']);
 
 // Banners (public)
 Route::get('/banners', [BannerController::class, 'publicIndex']);
@@ -294,5 +295,11 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::put('/admin/pages-banners/{banner}', [PagesBannersImageController::class, 'update'])->whereNumber('banner');
     Route::delete('/admin/pages-banners/{banner}', [PagesBannersImageController::class, 'destroy'])->whereNumber('banner');
     Route::post('/admin/pages-banners/{banner}/toggle-status', [PagesBannersImageController::class, 'toggleStatus'])->whereNumber('banner');
+
+    // Zone Management (Admin Only)
+    Route::post('/zones', [ZoneController::class, 'store']);
+    Route::get('/zones/{zone}', [ZoneController::class, 'show'])->whereNumber('zone');
+    Route::put('/zones/{zone}', [ZoneController::class, 'update'])->whereNumber('zone');
+    Route::delete('/zones/{zone}', [ZoneController::class, 'destroy'])->whereNumber('zone');
 
 });

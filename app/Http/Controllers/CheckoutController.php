@@ -31,7 +31,10 @@ class CheckoutController extends Controller
         }
 
         $subtotal = $cartItems->sum(fn($item) => $item->product->selling_price * $item->quantity);
-        $shipping = 3;
+        
+        // Get shipping price based on zone
+        $shipping = \App\Models\Zone::getShippingPriceForAddress($request->address_id);
+        
         $total    = $subtotal + $shipping;
 
         DB::beginTransaction();

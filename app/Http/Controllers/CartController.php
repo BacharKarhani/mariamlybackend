@@ -18,7 +18,13 @@ class CartController extends Controller
         }
 
         $subtotal = $items->sum(fn($item) => $item->product->selling_price * $item->quantity);
-        $shipping = $items->isEmpty() ? 0 : 3;
+        
+        // Calculate shipping based on zone if address_id is provided
+        $shipping = 0;
+        if (!$items->isEmpty() && $request->filled('address_id')) {
+            $shipping = \App\Models\Zone::getShippingPriceForAddress($request->address_id);
+        }
+        
         $total = $subtotal + $shipping;
 
         return response()->json([
