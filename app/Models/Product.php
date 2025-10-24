@@ -29,11 +29,13 @@ class Product extends Model
         'is_new',
         'new_until',
         'tags',
+        'hot_offer',
     ];
 
     protected $casts = [
         'is_trending' => 'boolean',
         'is_new'      => 'boolean',
+        'hot_offer'   => 'boolean',
         'new_until'   => 'datetime',
         'subcategory_id' => 'integer',
         'brand_id'    => 'integer',

@@ -86,6 +86,7 @@ Route::get('/brands', [BrandController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/trending', [ProductController::class, 'trending']);
 Route::get('/products/new', [ProductController::class, 'newProducts']);
+Route::get('/products/hot-offers', [ProductController::class, 'hotOffers']);
 Route::get('/products/search', [ProductController::class, 'search']);
 Route::get('/products/{product}', [ProductController::class, 'show'])
     ->whereNumber('product'); // 👈 المهم: قيّد {product} يكون رقم

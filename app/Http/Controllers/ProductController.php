@@ -29,6 +29,7 @@ class ProductController extends Controller
             'page'          => 'nullable|integer|min:1',
             'is_trending'   => 'nullable|boolean',
             'is_new'        => 'nullable|boolean',
+            'hot_offer'     => 'nullable|boolean',
             'tags'          => 'nullable|string',
         ]);
 
@@ -47,6 +48,8 @@ class ProductController extends Controller
                 fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
             ->when($request->filled('is_new'),
                 fn($q) => $q->where('is_new', $request->boolean('is_new')))
+            ->when($request->filled('hot_offer'),
+                fn($q) => $q->where('hot_offer', $request->boolean('hot_offer')))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $s = trim($request->input('search'));
                 $q->where(function ($qq) use ($s) {
@@ -146,6 +149,7 @@ class ProductController extends Controller
             'usage_instructions' => 'nullable|string',
             'is_trending'   => 'sometimes|boolean',
             'is_new'        => 'sometimes|boolean',
+            'hot_offer'     => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
             'tags'          => 'nullable|string|max:500',
             'tags'          => 'nullable|string|max:500',
@@ -188,6 +192,7 @@ class ProductController extends Controller
             'usage_instructions' => $request->usage_instructions,
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : false,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : false,
+            'hot_offer'     => $request->has('hot_offer') ? $request->boolean('hot_offer') : false,
             'new_until'     => $request->new_until,
             'tags'          => $request->tags,
         ]);
@@ -266,6 +271,7 @@ class ProductController extends Controller
             // UPDATED: Use 'image' for single file upload
             'image'         => 'nullable|image|max:2048', 
             'is_new'        => 'sometimes|boolean',
+            'hot_offer'     => 'sometimes|boolean',
             'new_until'     => 'nullable|date',
             // Variant rules remain
             'variants'      => 'nullable|array',
@@ -303,6 +309,7 @@ class ProductController extends Controller
             'usage_instructions' => $request->usage_instructions,
             'is_trending'   => $request->has('is_trending') ? $request->boolean('is_trending') : $product->is_trending,
             'is_new'        => $request->has('is_new') ? $request->boolean('is_new') : $product->is_new,
+            'hot_offer'     => $request->has('hot_offer') ? $request->boolean('hot_offer') : $product->hot_offer,
             'new_until'     => $request->has('new_until') ? $request->new_until : $product->new_until,
             'tags'          => $request->has('tags') ? $request->tags : $product->tags,
         ];
@@ -471,6 +478,29 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'new_products' => $products
+        ]);
+    }
+
+    // Get all hot offer products
+    public function hotOffers()
+    {
+        $products = Product::with(['categories','brand','variants' => function($query) {
+                $query->with('images')->ordered();
+            }])
+            ->where('hot_offer', true)
+            ->get();
+
+        if (!auth('sanctum')->user() || auth('sanctum')->user()->role_id !== 1) {
+            $products->makeHidden('buying_price');
+            // Also hide buying_price from variants
+            $products->each(function($product) {
+                $product->variants->makeHidden('buying_price');
+            });
+        }
+
+        return response()->json([
+            'success' => true,
+            'hot_offer_products' => $products
         ]);
     }
 
@@ -663,6 +693,7 @@ public function indexAdmin(Request $request)
         'page'        => 'nullable|integer|min:1',
         'is_trending' => 'nullable|boolean',
         'is_new'      => 'nullable|boolean',
+        'hot_offer'   => 'nullable|boolean',
         'show_inactive' => 'nullable|boolean', // Show products with 0 quantity
         'tags'        => 'nullable|string',
     ]);
@@ -680,6 +711,8 @@ public function indexAdmin(Request $request)
             fn($q) => $q->where('is_trending', $request->boolean('is_trending')))
         ->when($request->filled('is_new'),
             fn($q) => $q->where('is_new', $request->boolean('is_new')))
+        ->when($request->filled('hot_offer'),
+            fn($q) => $q->where('hot_offer', $request->boolean('hot_offer')))
         ->when($request->filled('search'), function ($q) use ($request) {
             $s = trim($request->input('search'));
             $q->where(function ($qq) use ($s) {
