@@ -62,7 +62,14 @@ class CheckoutController extends Controller
                 ]);
 
                 // تنزيل المخزون
-                $item->product->decrement('quantity', $item->quantity);
+                if ($item->variant) {
+                    // لو في Variant، ننقص من مخزون الفاريانت ونحدّث مجموع مخزون المنتج
+                    $item->variant->decrement('quantity', $item->quantity);
+                    $item->product->syncQuantityFromVariants();
+                } else {
+                    // منتج بدون فاريانت
+                    $item->product->decrement('quantity', $item->quantity);
+                }
             }
 
             // تفريغ السلة
