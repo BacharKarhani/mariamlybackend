@@ -546,29 +546,42 @@ class ProductController extends Controller
     $request->validate([
         'q'           => 'nullable|string|min:2',
         'category_id' => 'nullable|integer|exists:categories,id',
+        'subcategory_id' => 'nullable|integer|exists:subcategories,id',
         'brand_id'    => 'nullable|integer|exists:brands,id',
         'per_page'    => 'nullable|integer|min:1|max:100',
         'page'        => 'nullable|integer|min:1',
     ]);
 
-    if (! $request->filled('q') && ! $request->filled('category_id') && ! $request->filled('brand_id')) {
+    if (! $request->filled('q') && ! $request->filled('category_id') && ! $request->filled('subcategory_id') && ! $request->filled('brand_id')) {
         return response()->json([
             'success' => false,
-            'message' => 'Provide at least one of: q, category_id, brand_id.',
+            'message' => 'Provide at least one of: q, category_id, subcategory_id, brand_id.',
             'errors'  => ['filters' => ['At least one filter is required.']],
         ], 422);
     }
 
     $perPage = (int) $request->input('per_page', 20);
 
-    $query = Product::with(['categories','brand','variants.images'])
+    $query = Product::with(['categories','subcategory','brand','variants.images'])
         ->when($request->filled('q'), function ($qq) use ($request) {
-            $q = $request->input('q');
-            $qq->where('name', 'like', "%{$q}%");
-            // إذا بدك تضيف الوصف كمان:
-            // $qq->orWhere('desc', 'like', "%{$q}%");
+            $q = trim($request->input('q'));
+            $qq->where(function ($w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                  ->orWhere('desc', 'like', "%{$q}%")
+                  ->orWhere('tags', 'like', "%{$q}%")
+                  ->orWhereHas('categories', function ($cq) use ($q) {
+                      $cq->where('name', 'like', "%{$q}%");
+                  })
+                  ->orWhereHas('subcategory', function ($sq) use ($q) {
+                      $sq->where('name', 'like', "%{$q}%");
+                  })
+                  ->orWhereHas('brand', function ($bq) use ($q) {
+                      $bq->where('name', 'like', "%{$q}%");
+                  });
+            });
         })
         ->when($request->filled('category_id'), fn($qq) => $qq->whereHas('categories', fn($qqq) => $qqq->where('categories.id', $request->integer('category_id'))))
+        ->when($request->filled('subcategory_id'), fn($qq) => $qq->where('subcategory_id', $request->integer('subcategory_id')))
         ->when($request->filled('brand_id'), fn($qq) => $qq->where('brand_id', $request->integer('brand_id')))
         ->orderByDesc('id');
 
@@ -582,7 +595,7 @@ class ProductController extends Controller
 
     return response()->json([
         'success'  => true,
-        'filters'  => $request->only(['q','category_id','brand_id']),
+        'filters'  => $request->only(['q','category_id','subcategory_id','brand_id']),
         'products' => $products, // مع meta/links للباجينيشن
     ]);
 }
