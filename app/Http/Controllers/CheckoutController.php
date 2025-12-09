@@ -95,7 +95,7 @@ $orderFresh = Order::with(['user', 'address.zone', 'orderProducts.product', 'ord
                     Log::warning('User email missing for order #'.$orderFresh->order_id);
                 }
 
-                $adminEmail = 'info@mariamly.com'; 
+                $adminEmail = 'info@mariamlyluxe.com'; 
                 if ($adminEmail) {
                     Log::info('Sending admin email for order #'.$orderFresh->order_id.' to '.$adminEmail);
                     Mail::to($adminEmail)->send(new OrderPlacedAdmin($orderFresh));
