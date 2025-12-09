@@ -620,9 +620,10 @@ public function discounted(Request $request)
     $minDiscount = (float) $request->input('min_discount', 0);
 
     $query = Product::with(['categories','brand','variants.images'])
-        ->where('discount', '>', $minDiscount)
-        // (اختياري) نتأكد إنّ السعر المبيع أقل من العادي فعلاً
-        ->whereColumn('selling_price', '<', 'regular_price')
+        ->whereHas('variants', function($q) use ($minDiscount) {
+            $q->where('discount', '>', $minDiscount)
+              ->whereColumn('selling_price', '<', 'regular_price');
+        })
         ->when($request->filled('category_id'),
             fn($q) => $q->whereHas('categories', fn($qq) => $qq->where('categories.id', $request->integer('category_id'))))
         ->when($request->filled('brand_id'),

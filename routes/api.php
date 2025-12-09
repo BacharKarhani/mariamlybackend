@@ -248,8 +248,9 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
     Route::get('/orders/stats/profit-by-month', [OrderController::class, 'profitByMonth']);
     // Users (admin)
     Route::get('/users/search-by-name', [AuthController::class, 'searchUserByName']);
-   
+    Route::get('/users/{userId}', [AuthController::class, 'viewUserProfile'])->whereNumber('userId');
     Route::put('/users/{userId}/promote', [AuthController::class, 'promoteToAdmin'])->whereNumber('userId');
+    Route::put('/users/{userId}/remove-admin', [AuthController::class, 'removeAdmin'])->whereNumber('userId');
 
     // Banners (admin)
     Route::get('/banners/admin', [BannerController::class, 'index']);
